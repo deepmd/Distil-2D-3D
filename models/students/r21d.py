@@ -161,11 +161,13 @@ class R2Plus1DNet(nn.Module):
             block_type (Module, optional): Type of block that is to be used to form the layers. Default: SpatioTemporalResBlock.
     """
 
-    def __init__(self, layer_sizes, block_type=SpatioTemporalResBlock, with_classifier=False, return_conv=False, num_classes=101):
+    # def __init__(self, layer_sizes=(1, 1, 1, 1), block_type=SpatioTemporalResBlock,
+    #              with_classifier=False, return_conv=False, num_classes=101):
+    def __init__(self, layer_sizes=(1, 1, 1, 1), block_type=SpatioTemporalResBlock, num_outputs=101):
         super(R2Plus1DNet, self).__init__()
-        self.with_classifier = with_classifier
-        self.return_conv = return_conv
-        self.num_classes = num_classes
+        # self.with_classifier = with_classifier
+        # self.return_conv = return_conv
+        self.num_outputs = num_outputs
 
         # first conv, with stride 1x2x2 and kernel size 1x7x7
         self.conv1 = SpatioTemporalConv(3, 64, (3, 7, 7), stride=(1, 2, 2), padding=(1, 3, 3))
@@ -179,15 +181,16 @@ class R2Plus1DNet(nn.Module):
         self.conv4 = SpatioTemporalResLayer(128, 256, 3, layer_sizes[2], block_type=block_type, downsample=True)
         self.conv5 = SpatioTemporalResLayer(256, 512, 3, layer_sizes[3], block_type=block_type, downsample=True)
 
-        if self.return_conv:
-            self.feature_pool = nn.MaxPool3d(kernel_size=(1, 2, 2), stride=(1, 2, 2))   # 9216
-            # self.feature_pool = nn.MaxPool3d(kernel_size=(2, 2, 2), stride=(2, 2, 2)) 4182
+        # if self.return_conv:
+        #     self.feature_pool = nn.MaxPool3d(kernel_size=(1, 2, 2), stride=(1, 2, 2))   # 9216
+        #     # self.feature_pool = nn.MaxPool3d(kernel_size=(2, 2, 2), stride=(2, 2, 2)) 4182
 
         # global average pooling of the output
         self.pool = nn.AdaptiveAvgPool3d(1)
 
-        if self.with_classifier:
-            self.linear = nn.Linear(512, self.num_classes)
+        # if self.with_classifier:
+        #     self.linear = nn.Linear(512, self.num_outputs)
+        self.linear = nn.Linear(512, self.num_outputs)
 
     def forward(self, x):
         x = self.relu1(self.bn1(self.conv1(x)))
@@ -196,18 +199,19 @@ class R2Plus1DNet(nn.Module):
         x = self.conv4(x)
         x = self.conv5(x)
         
-        if self.return_conv:
-            x = self.feature_pool(x)
-            # print(x.shape)
-            return x.view(x.shape[0], -1)
+        # if self.return_conv:
+        #     x = self.feature_pool(x)
+        #     # print(x.shape)
+        #     return x.view(x.shape[0], -1)
 
         x = self.pool(x)
-        x = x.view(-1, 512)
+        feats = x.view(-1, 512)
         
-        if self.with_classifier:
-            x = self.linear(x)
+        # if self.with_classifier:
+        #     x = self.linear(x)
+        logits = self.linear(feats)
 
-        return x 
+        return {'features': feats, 'logits': logits}
 
 
 if __name__ == '__main__':

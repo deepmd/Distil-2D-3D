@@ -1,35 +1,35 @@
 import torch
 
-from .teachers.resnet import ResNet18
-from .teachers.resnet import ResNet34
-from .teachers.resnet import ResNet50
-from .teachers.resnet import ResNet101
-from .teachers.resnet import ResNet152
+from .teachers.resnet import resnet18
+from .teachers.resnet import resnet34
+from .teachers.resnet import resnet50
+from .teachers.resnet import resnet101
+from .teachers.resnet import resnet152
 
 from .students.c3d import C3D
 from .students.r3d import R3DNet
 from .students.r21d import R2Plus1DNet
 
-t_models = {'res18': ResNet18, 'res34': ResNet34, 'res50': ResNet50, 'res101': ResNet101, 'res152': ResNet152}
+t_models = {'resnet18': resnet18, 'resnet34': resnet34, 'resnet50': resnet50, 'resnet101': resnet101, 'resnet152': resnet152}
 s_models = {'c3d': C3D, 'r3d': R3DNet, 'r21d': R2Plus1DNet}
 
 
-def get_models(cfg_models, device):
+def get_models(t_arch, s_arch, num_outputs, t_pretrain_path=None, freeze_t_bbon=True):
     # Create teacher model
-    teacher = t_models[cfg_models['teacher']['arch']]()
+    teacher = t_models[t_arch](num_outputs=num_outputs)
 
     # Load parameters in teacher models
-    if cfg_models['teacher']['pretrained_weights'] is not None:
-        checkpoint = torch.load(['teacher']['pretrained_weights'])
+    if t_pretrain_path is not None:
+        checkpoint = torch.load(t_pretrain_path)
         teacher.load_state_dict(checkpoint)
 
     # Freeze teachers's weights
-    if cfg_models['teacher']['freeze_bbon']:
+    if freeze_t_bbon:
         for param in teacher.parameters():
             param.requires_grad = False
 
     # Create student model
-    student = s_models[cfg_models['student']['arch']]()
+    student = s_models[s_arch](num_outputs=num_outputs)
 
     return teacher, student
 

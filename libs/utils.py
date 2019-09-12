@@ -56,3 +56,17 @@ def get_logger(logdir):
     logger.addHandler(hdlr)
     logger.setLevel(logging.INFO)
     return logger
+
+
+def count_parameter_number(model):
+    total_params = sum(p.numel() for p in model.parameters())
+    trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    print("Total number of parameters: %d" % total_params)
+    print("Total number of trainable parameters: %d" % trainable_params)
+
+
+def load_value_file(file_path):
+    with open(file_path, 'r') as input_file:
+        value = float(input_file.read().rstrip('\n\r'))
+
+    return value
