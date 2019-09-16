@@ -6,37 +6,37 @@ from .datasets.hmdb51 import HMDB51
 
 def get_training_set(opt, spatial_transform, temporal_transform,
                      target_transform):
-    assert opt.dataset in ['kinetics', 'activitynet', 'ucf101', 'hmdb51']
+    assert opt.train_dataset in ['kinetics', 'activitynet', 'ucf101', 'hmdb51']
 
-    if opt.dataset == 'kinetics':
+    if opt.train_dataset == 'kinetics':
         training_data = Kinetics(
-            opt.video_path,
-            opt.annotation_path,
+            opt.train_video_path,
+            opt.train_annotation_path,
             'training',
             spatial_transform=spatial_transform,
             temporal_transform=temporal_transform,
             target_transform=target_transform)
-    elif opt.dataset == 'activitynet':
+    elif opt.train_dataset == 'activitynet':
         training_data = ActivityNet(
-            opt.video_path,
-            opt.annotation_path,
+            opt.train_video_path,
+            opt.train_annotation_path,
             'training',
             False,
             spatial_transform=spatial_transform,
             temporal_transform=temporal_transform,
             target_transform=target_transform)
-    elif opt.dataset == 'ucf101':
+    elif opt.train_dataset == 'ucf101':
         training_data = UCF101(
-            opt.video_path,
-            opt.annotation_path,
+            opt.train_video_path,
+            opt.train_annotation_path,
             'training',
             spatial_transform=spatial_transform,
             temporal_transform=temporal_transform,
             target_transform=target_transform)
-    elif opt.dataset == 'hmdb51':
+    elif opt.train_dataset == 'hmdb51':
         training_data = HMDB51(
-            opt.video_path,
-            opt.annotation_path,
+            opt.train_video_path,
+            opt.train_annotation_path,
             'training',
             spatial_transform=spatial_transform,
             temporal_transform=temporal_transform,
@@ -47,22 +47,22 @@ def get_training_set(opt, spatial_transform, temporal_transform,
 
 def get_validation_set(opt, spatial_transform, temporal_transform,
                        target_transform):
-    assert opt.dataset in ['kinetics', 'activitynet', 'ucf101', 'hmdb51']
+    assert opt.val_dataset in ['kinetics', 'activitynet', 'ucf101', 'hmdb51']
 
-    if opt.dataset == 'kinetics':
+    if opt.val_dataset == 'kinetics':
         validation_data = Kinetics(
-            opt.video_path,
-            opt.annotation_path,
+            opt.val_video_path,
+            opt.val_annotation_path,
             'validation',
             opt.n_val_samples,
             spatial_transform,
             temporal_transform,
             target_transform,
             sample_duration=opt.sample_duration)
-    elif opt.dataset == 'activitynet':
+    elif opt.val_dataset == 'activitynet':
         validation_data = ActivityNet(
-            opt.video_path,
-            opt.annotation_path,
+            opt.val_video_path,
+            opt.val_annotation_path,
             'validation',
             False,
             opt.n_val_samples,
@@ -70,20 +70,20 @@ def get_validation_set(opt, spatial_transform, temporal_transform,
             temporal_transform,
             target_transform,
             sample_duration=opt.sample_duration)
-    elif opt.dataset == 'ucf101':
+    elif opt.val_dataset == 'ucf101':
         validation_data = UCF101(
-            opt.video_path,
-            opt.annotation_path,
+            opt.val_video_path,
+            opt.val_annotation_path,
             'validation',
             opt.n_val_samples,
             spatial_transform,
             temporal_transform,
             target_transform,
             sample_duration=opt.sample_duration)
-    elif opt.dataset == 'hmdb51':
+    elif opt.val_dataset == 'hmdb51':
         validation_data = HMDB51(
-            opt.video_path,
-            opt.annotation_path,
+            opt.val_video_path,
+            opt.val_annotation_path,
             'validation',
             opt.n_val_samples,
             spatial_transform,

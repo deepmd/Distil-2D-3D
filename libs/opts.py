@@ -1,4 +1,5 @@
 import argparse
+import yaml
 from os import path
 
 from .mean import get_mean, get_std
@@ -12,30 +13,20 @@ class opts(object):
                                  type=str,
                                  default='default')
         self.parser.add_argument(
-            '--data_path',
-            default='/root/data/ActivityNet',
-            type=str,
-            help='Root directory path of data')
-        self.parser.add_argument(
-            '--video_path',
-            default='video_kinetics_jpg',
-            type=str,
-            help='Directory path of Videos')
-        self.parser.add_argument(
-            '--annotation_path',
-            default='kinetics.json',
-            type=str,
-            help='Annotation file path')
-        self.parser.add_argument(
             '--exp_path',
-            default='exps',
+            default='./exps',
             type=str,
             help='Expriments directory path')
         self.parser.add_argument(
-            '--dataset',
+            '--train_dataset',
             default='kinetics',
             type=str,
-            help='Used dataset (activitynet | kinetics | ucf101 | hmdb51)')
+            help='Used dataset for training (activitynet | kinetics | ucf101 | hmdb51)')
+        self.parser.add_argument(
+            '--val_dataset',
+            default='kinetics',
+            type=str,
+            help='Used dataset for validatin (ucf101 | hmdb51)')
         self.parser.add_argument(
             '--n_outputs',
             default=400,
@@ -250,6 +241,10 @@ class opts(object):
             type=str,
             default='avg',
             help='How to combine frame information across a video (avg | vlad | ssl)')
+        self.parser.add_argument(
+            '--dataset_configs',
+            type=str,
+            help='Configurations of datasets (kinetics | ucf101 | hmdb51).')
 
     def parse(self, args=''):
         if args == '':
@@ -261,15 +256,24 @@ class opts(object):
         opt.gpus = [int(gpu) for gpu in opt.gpus.split(',')]
         opt.gpus = [i for i in range(len(opt.gpus))] if opt.gpus[0] >= 0 else [-1]
 
-        if opt.data_path != '':
-            opt.video_path = path.join(opt.data_path, opt.video_path)
-            opt.annotation_path = path.join(opt.data_path, opt.annotation_path)
-            # opt.exp_path = path.join(opt.root_path, opt.exp_path)
+        with open(opt.dataset_configs) as fp:
+            cfg = yaml.load(fp)
+
+        train_data_cfg = cfg[opt.train_dataset]
+        if train_data_cfg is not None:
+            opt.train_video_path = path.join(train_data_cfg['data_path'], train_data_cfg['jpg_video_path'])
+            opt.train_annotation_path = path.join(train_data_cfg['data_path'],
+                                                  train_data_cfg['annotation_path'], 'ucf101_01.json')
             opt.save_path = path.join(opt.exp_path, opt.exp_id)
             if opt.s_resume_path:
                 opt.s_resume_path = path.join(opt.save_path, opt.s_resume_path)
-            # if opt.t_pretrain_path:
-            #     opt.t_pretrain_path = path.join(opt.save_path, opt.t_pretrain_path)
+
+        val_data_cfg = cfg[opt.val_dataset]
+        if val_data_cfg is not None:
+            opt.val_video_path = path.join(val_data_cfg['data_path'], val_data_cfg['avi_video_path'])
+            opt.val_annotation_path = path.join(val_data_cfg['data_path'], val_data_cfg['annotation_path'])
+            opt.extracted_features_path = path.join(opt.save_path, 'extracted_features_dir')
+
 
         opt.scales = [opt.initial_scale]
         for i in range(1, opt.n_scales):
@@ -283,14 +287,6 @@ class opts(object):
         elif not opt.std_norm:
             opt.mean = opt.mean
             opt.std = [1, 1, 1]
-
-        # assert opt.train_crop in ['random', 'corner', 'center']
-        # if opt.train_crop == 'random':
-        #     opt.crop_method = MultiScaleRandomCrop(opt.scales, opt.sample_size)
-        # elif opt.train_crop == 'corner':
-        #     opt.crop_method = MultiScaleCornerCrop(opt.scales, opt.sample_size)
-        # elif opt.train_crop == 'center':
-        #     opt.crop_method = MultiScaleCornerCrop(opt.scales, opt.sample_size, crop_positions=['c'])
 
         if opt.nesterov:
             opt.dampening = 0

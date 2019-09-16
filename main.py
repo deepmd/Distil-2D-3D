@@ -16,6 +16,7 @@ from libs.temporal_transforms import TemporalRandomCrop, LoopPadding
 from libs.target_transforms import ClassLabel
 from libs.dataset import get_training_set, get_validation_set
 from libs.spatial_transforms import MultiScaleCornerCrop
+from libs.retrieve_clips import do_validation
 
 from models.model_factory import get_models
 
@@ -88,30 +89,14 @@ def train(opt, writer, logger):
                                        num_workers=opt.n_threads,
                                        pin_memory=True)
 
-    if not opt.no_val:
-        spatial_transform = Compose([
-            Scale(opt.sample_size),
-            CenterCrop(opt.sample_size),
-            ToTensor(opt.norm_value),
-            Normalize(opt.mean, opt.std)
-        ])
-        temporal_transform = LoopPadding(opt.sample_duration)
-        target_transform = ClassLabel()
-        validation_data = get_validation_set(opt, spatial_transform, temporal_transform, target_transform)
-        val_loader = data.DataLoader(validation_data,
-                                     batch_size=opt.batch_size,
-                                     shuffle=False,
-                                     num_workers=opt.n_threads,
-                                     pin_memory=True)
+        optimizer = optim.SGD(student.parameters(),
+                              lr=opt.learning_rate,
+                              momentum=opt.momentum,
+                              dampening=opt.dampening,
+                              weight_decay=opt.weight_decay,
+                              nesterov=opt.nesterov)
 
-    optimizer = optim.SGD(student.parameters(),
-                          lr=opt.learning_rate,
-                          momentum=opt.momentum,
-                          dampening=opt.dampening,
-                          weight_decay=opt.weight_decay,
-                          nesterov=opt.nesterov)
-
-    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=opt.lr_patience)
+        scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=opt.lr_patience)
 
     for i, (inputs, targets) in enumerate(train_loader):
         if not opt.no_cuda:
@@ -126,6 +111,9 @@ def train(opt, writer, logger):
 
         s_inputs = F.interpolate(inputs, scale_factor=(1.0, 0.5, 0.5), mode='nearest')
         output = student(s_inputs)
+
+        if not opt.no_val:
+            val_acc = do_validation(student, opt, device, 'student')
 
 
 if __name__ == '__main__':
