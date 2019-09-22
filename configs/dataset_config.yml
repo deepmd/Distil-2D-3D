@@ -1,0 +1,31 @@
+activitynet:
+  root_path: '' # root data path
+  jpg_video_path: '' # jpg videos path
+  avi_video_path: '' # avi videos path
+  annotation_path: '' # annotation path
+  mean: [114.7748, 107.7354, 99.4750]
+  std: [38.7568578, 37.88248729, 40.02898126]
+
+kinetics:
+  root_path: ''
+  jpg_video_path: ''
+  avi_video_path: ''
+  annotation_path: ''
+  mean: [110.63666788, 103.16065604, 96.29023126]
+  std: [38.7568578, 37.88248729, 40.02898126]
+
+ucf101:
+  root_path: ''
+  jpg_video_path: ''
+  avi_video_path: ''
+  annotation_path: ''
+  mean: [?, ?, ?]
+  std: [38.7568578, 37.88248729, 40.02898126]
+
+hmdb51:
+  data_path: ''
+  jpg_video_path: ''
+  avi_video_path: ''
+  annotation_path: ''
+  mean: [?, ?, ?]
+  std: [38.7568578, 37.88248729, 40.02898126]

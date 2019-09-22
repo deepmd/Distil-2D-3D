@@ -1,0 +1,69 @@
+model:
+  t_arch: # Model used as teacher (res18 | res34 | res50 | res101 | res152)
+  s_arch: # Model used as student (c3d | r3d | r21d)
+  d_arch: # Model used as discriminator {for relevant KD method}
+  n_classes: # Size of models's output. [default=activitynet: 200, kinetics: 400, ucf101: 101, hmdb51: 51]
+  t_pretrain_path: # Path of weights to load into teacher model
+  s_pretrain_path: # Path of weights to load into student model
+
+run:
+  exp_path: 'exps' # Result directory path [default='exps']
+  exp_id: # Give an id to new exprement. [default=random_id]
+  gpus: 0 # -1 for CPU, otherwise use a list for multiple gpu numbers. [default=0]
+  manual_seed: 1 # Manually set random seed. [default=1]
+
+train: # {if not exists in cfg no train will be done}
+  method: # Knowledge distillation train method ('ANC', 'Hinton')
+  n_threads: 4 # Number of threads for multi-thread loading [default=4]
+  batch_size: 32 # Batch Size per gpu. [default=32]
+  n_epochs: 200 # Number of total epochs to run. [default=200]
+  checkpoint: 10 # Trained models are saved at every this epochs. [default=10]
+  temporal_pooling: # Temporal pooling of teacher ('AVG')
+  data:
+    name: # Used dataset (activitynet | kinetics | ucf101 | hmdb51)
+    sample_size: 224 # Height and width of samples [default=224]
+    sample_duration: 16 # Temporal duration of samples [default=16]
+    norm_value: 255 # If 1, range of inputs is [0-255]. If 255, range of inputs is [0-1]. [default=255]
+    mean: # mean values used for normalizing. Set [0, 0, 0] for no mean. [default=dataset specific mean]
+    std: # std values used for normalizing. Set [1, 1, 1] for no std. [default=dataset specific std]
+    initial_scale: 1.0 # Initial scale for multiscale cropping [default=1.0]
+    n_scales: 5 # Number of scales for multiscale cropping [default=5]
+    scale_step: 0.84089641525 # Scale step for multiscale cropping [default=0.84089641525]
+    train_crop: 'corner' # Spatial cropping method in training. random is uniform. corner is selection from 4 corners and 1 center.  (random | corner | center) [default='corner']
+  adv_loss: # {for relevant KD method}
+    name: 'BCE' # Currently only support BCE. todo: WGAN, ...
+    weight: 1 # Weight of this loss in total loss. [default=1]
+  sim_loss:
+    name: # Type of similarity loss between logits ('L1', 'L2', 'CE')
+    weight: 1 # Weight of this loss in total loss. [default=1]
+    temperature: # Temperature used in Hinton KD
+  d_reg: # {if discriminator regularizer required}
+    name: # Type of discriminator regularizer ('L1', 'L2', 'FakeAsReal' or a list of them)
+    weight: 1 # Weight of this loss in total loss. [default=1]
+  optimizer: # If needed to have multiple optimizer cfg for discriminator and student use d_optimizer and s_optimizer
+    name: 'SGD' # ('SGD', 'Adam', 'RMSProp') [default='SGD']
+    learning_rate: # Initial learning rate.
+    momentum: 0 # Momentum [default=0]
+    dampening: 0.9 # dampening of SGD. [default=0.9]
+    weight_decay: 0.001 # Weight Decay. [default=1e-3]
+    nesterov: False # Nesterov momentum for SGD. [default=False]
+  scheduler: # If needed to have multiple scheduler cfg for discriminator and student use d_scheduler and s_scheduler
+    name: # ('ReduceLROnPlateau', 'MultiStep', 'Exponential')
+    decay_factor: 0.1 # Factor by which the learning rate will be reduced in ReduceLROnPlateau LR scheduler. [default=0.1]
+    patience: 10 # Patience of ReduceLROnPlateau LR scheduler [default=10]
+    threshold: 0.0001  # threshold for measuring the new optimum in ReduceLROnPlateau LR scheduler [default=1e-4]
+    milestones: # List of epoch numbers to change learning rate in MultiStep LR scheduler.
+    gamma: 0.1 # Multiplicative factor of learning rate decay in MultiStep or Exponential LR schedulers. [default=0.1]
+  resume_path: # Save data (.pth) of previous training.
+  logging_n: 50 # logging will be done at every this iteration.
+
+eval: # {if not exists in cfg no evaluation will be done}
+  n_threads: 4 # Number of threads for multi-thread loading [default=4]
+  batch_size: 32 # Batch Size per gpu. [default=32]
+  epoch_n: 1 # Evaluation will be done at every this epochs. [default=1]
+  data:
+    name: # Used dataset (ucf101 | hmdb51)
+    norm_value: 255 # If 1, range of inputs is [0-255]. If 255, range of inputs is [0-1]. [default=255]
+    mean: # mean values used for normalizing. Set [0, 0, 0] for no mean. [default=dataset specific mean]
+    std: # std values used for normalizing. Set [1, 1, 1] for no std. [default=dataset specific std]
+

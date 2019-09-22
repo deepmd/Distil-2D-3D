@@ -4,6 +4,7 @@ from collections import OrderedDict
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from torch.nn.modules.utils import _triple
 
 
@@ -59,7 +60,7 @@ class C3D(nn.Module):
         #     self.linear = nn.Linear(512, self.num_outputs)
         self.linear = nn.Linear(512, self.num_outputs)
 
-    def forward(self, x):
+    def forward(self, x, dropout=None):
         x = self.conv1(x) 
         x = self.bn1(x)
         x = self.relu1(x)
@@ -100,6 +101,8 @@ class C3D(nn.Module):
 
         x = self.pool5(x)
         feats = x.view(-1, 512)
+        if dropout is not None:
+            feats = F.dropout(feats, p=dropout)
 
         # if self.with_classifier:
         #     x = self.linear(x)

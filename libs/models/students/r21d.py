@@ -1,4 +1,4 @@
-"""R3D"""
+"""R2plus1D"""
 import math
 from collections import OrderedDict
 
@@ -8,7 +8,7 @@ from torch.nn.modules.utils import _triple
 
 
 class SpatioTemporalConv(nn.Module):
-    r"""Applies a factored 3D convolution over an input signal composed of several input
+    """Applies a factored 3D convolution over an input signal composed of several input
     planes with distinct spatial and time axes, by performing a 2D convolution over the
     spatial axes to an intermediate subspace, followed by a 1D convolution over the time
     axis to produce the final output.
@@ -20,8 +20,7 @@ class SpatioTemporalConv(nn.Module):
         padding (int or tuple, optional): Zero-padding added to the sides of the input during their respective convolutions. Default: 0
         bias (bool, optional): If ``True``, adds a learnable bias to the output. Default: ``True``
     """
-
-    def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding=0, bias=False):
+    def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding=0, bias=False, first_conv=False):
         super(SpatioTemporalConv, self).__init__()
 
         # if ints are entered, convert them to iterables, 1 -> [1, 1, 1]
@@ -29,12 +28,42 @@ class SpatioTemporalConv(nn.Module):
         stride = _triple(stride)
         padding = _triple(padding)
 
+        # decomposing the parameters into spatial and temporal components by
+        # masking out the values with the defaults on the axis that
+        # won't be convolved over. This is necessary to avoid unintentional
+        # behavior such as padding being added twice
+        spatial_kernel_size =  (1, kernel_size[1], kernel_size[2])
+        spatial_stride =  (1, stride[1], stride[2])
+        spatial_padding =  (0, padding[1], padding[2])
 
-        self.temporal_spatial_conv = nn.Conv3d(in_channels, out_channels, kernel_size,
-                                    stride=stride, padding=padding, bias=bias)
+        temporal_kernel_size = (kernel_size[0], 1, 1)
+        temporal_stride = (stride[0], 1, 1)
+        temporal_padding = (padding[0], 0, 0)
+
+        # compute the number of intermediary channels (M) using formula
+        # from the paper section 3.5
+        intermed_channels = int(math.floor((kernel_size[0] * kernel_size[1] * kernel_size[2] * in_channels * out_channels)/ \
+                            (kernel_size[1] * kernel_size[2] * in_channels + kernel_size[0] * out_channels)))
+        # print(intermed_channels)
+
+        # the spatial conv is effectively a 2D conv due to the
+        # spatial_kernel_size, followed by batch_norm and ReLU
+        self.spatial_conv = nn.Conv3d(in_channels, intermed_channels, spatial_kernel_size,
+                                    stride=spatial_stride, padding=spatial_padding, bias=bias)
+        self.bn = nn.BatchNorm3d(intermed_channels)
+        self.relu = nn.ReLU()
+
+        # the temporal conv is effectively a 1D conv, but has batch norm
+        # and ReLU added inside the model constructor, not here. This is an
+        # intentional design choice, to allow this module to externally act
+        # identical to a standard Conv3D, so it can be reused easily in any
+        # other codebase
+        self.temporal_conv = nn.Conv3d(intermed_channels, out_channels, temporal_kernel_size,
+                                    stride=temporal_stride, padding=temporal_padding, bias=bias)
 
     def forward(self, x):
-        x = self.temporal_spatial_conv(x)
+        x = self.relu(self.bn(self.spatial_conv(x)))
+        x = self.temporal_conv(x)
         return x
 
 
@@ -62,7 +91,7 @@ class SpatioTemporalResBlock(nn.Module):
         padding = kernel_size // 2
 
         if self.downsample:
-            # downsample with stride = 2 the input x
+            # downsample with stride =2 the input x
             self.downsampleconv = SpatioTemporalConv(in_channels, out_channels, 1, stride=2)
             self.downsamplebn = nn.BatchNorm3d(out_channels)
 
@@ -123,7 +152,7 @@ class SpatioTemporalResLayer(nn.Module):
         return x
 
 
-class R3DNet(nn.Module):
+class R2Plus1DNet(nn.Module):
     r"""Forms the overall ResNet feature extractor by initializng 5 layers, with the number of blocks in
     each layer set by layer_sizes, and by performing a global average pool at the end producing a
     512-dimensional vector for each element in the batch.
@@ -135,13 +164,13 @@ class R3DNet(nn.Module):
     # def __init__(self, layer_sizes=(1, 1, 1, 1), block_type=SpatioTemporalResBlock,
     #              with_classifier=False, return_conv=False, num_classes=101):
     def __init__(self, layer_sizes=(1, 1, 1, 1), block_type=SpatioTemporalResBlock, num_outputs=101):
-        super(R3DNet, self).__init__()
+        super(R2Plus1DNet, self).__init__()
         # self.with_classifier = with_classifier
         # self.return_conv = return_conv
         self.num_outputs = num_outputs
 
-        # first conv, with stride 1x2x2 and kernel size 3x7x7
-        self.conv1 = SpatioTemporalConv(3, 64, [3, 7, 7], stride=[1, 2, 2], padding=[1, 3, 3])
+        # first conv, with stride 1x2x2 and kernel size 1x7x7
+        self.conv1 = SpatioTemporalConv(3, 64, (3, 7, 7), stride=(1, 2, 2), padding=(1, 3, 3))
         self.bn1 = nn.BatchNorm3d(64)
         self.relu1 = nn.ReLU()
         # output of conv2 is same size as of conv1, no downsampling needed. kernel_size 3x3x3
@@ -163,26 +192,29 @@ class R3DNet(nn.Module):
         #     self.linear = nn.Linear(512, self.num_outputs)
         self.linear = nn.Linear(512, self.num_outputs)
 
-    def forward(self, x):
+    def forward(self, x, dropout=None):
         x = self.relu1(self.bn1(self.conv1(x)))
         x = self.conv2(x)
         x = self.conv3(x)
         x = self.conv4(x)
         x = self.conv5(x)
-    
+        
         # if self.return_conv:
         #     x = self.feature_pool(x)
         #     # print(x.shape)
         #     return x.view(x.shape[0], -1)
-        
+
         x = self.pool(x)
         feats = x.view(-1, 512)
-
+        if dropout is not None:
+            feats = F.dropout(feats, p=dropout)
+        
         # if self.with_classifier:
         #     x = self.linear(x)
         logits = self.linear(feats)
 
         return {'features': feats, 'logits': logits}
 
+
 if __name__ == '__main__':
-    r3d = R3DNet((1,1,1,1))
+    r21d = R2Plus1DNet((1,1,1,1))

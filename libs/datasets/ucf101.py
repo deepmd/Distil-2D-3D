@@ -13,7 +13,7 @@ import copy
 import random
 import numpy as np
 
-from ..utils import load_value_file
+from libs.utils import load_value_file
 
 
 def pil_loader(path):

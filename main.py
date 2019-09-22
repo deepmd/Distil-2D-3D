@@ -1,132 +1,193 @@
 import torch
-from torch import optim
 from tensorboardX import SummaryWriter
 import torch.backends.cudnn as cudnn
-from torch.utils import data
-from torch.autograd import Variable
-from torch.nn import functional as F
-
+from progress.bar import Bar
 import numpy as np
-import json
+import shutil
 import random
 import os
-from libs.utils import get_logger, count_parameter_number
-from libs.spatial_transforms import Compose, Normalize, ToTensor, RandomHorizontalFlip, Scale, CenterCrop
-from libs.temporal_transforms import TemporalRandomCrop, LoopPadding
-from libs.target_transforms import ClassLabel
-from libs.dataset import get_training_set, get_validation_set
-from libs.spatial_transforms import MultiScaleCornerCrop
-from libs.retrieve_clips import do_validation
+import time
+import datetime
+from collections import defaultdict
 
-from models.model_factory import get_models
-
+from libs.utils import get_logger, log_parameter_number, AverageMeter
+from libs.models.model_factory import get_teacher_student_models
+from libs.train.trainer_factory import get_trainer
+from libs.eval.evaluator_factory import get_evaluator
 from libs.opts import opts
 
 
-def teacher_inference(model, input, temporal_pooling):
-    if temporal_pooling == 'avg':
-        num_frames = input.size(2)
-        answer_feats = []
-        answer_logits = []
-        for sample in input[:]:
-            feats = []
-            logits = []
-            for i in range(num_frames):
-                frame = sample[:3, i, :, :].unsqueeze(0)
-                out = model(frame)
-                feats.append(out['features'])
-                logits.append(out['logits'])
+class TrainCallback(object):
+    def __init__(self, exp_id, logging_n, writer, logger):
+        self.writer = writer
+        self.logger = logger
+        self.exp_id = exp_id
+        self.logging_n = logging_n
 
-            answer_feats.append(torch.sum(torch.cat(feats), dim=0) / num_frames)
-            answer_logits.append(torch.sum(torch.cat(logits), dim=0) / num_frames)
+    def begin_epoch(self, epoch, step, total_iters):
+        self.bar = Bar('{}'.format(self.exp_id), max=total_iters)
+        self.begin_step = step
+        self.total_iters = total_iters
+        self.bar_avg_loss = defaultdict(lambda: AverageMeter())
+        self.log_avg_loss = defaultdict(lambda: AverageMeter())
+        self.bar_batch_time = AverageMeter()
+        self.log_batch_time = AverageMeter()
+        self.start = time.time()
+        self.last_lrs = dict()
 
-        answer_feats = torch.stack(answer_feats, dim=0)
-        answer_logits = torch.stack(answer_logits, dim=0)
+    def enb_epoch(self, epoch, step):
+        self.bar.finish()
+        # ============ TensorBoard logging ============#
+        info = {('param/LR_' + l): v for l, v in self.last_lrs.items}
+        for tag, value in info.items():
+            writer.add_scalar(tag, value, epoch)
 
-        return {'features': answer_feats, 'logits': answer_logits}
+
+    def iter(self, epoch, step, losses, lrs, batch_size):
+        # ============ Progressbar & logging ============#
+        iter_id = step - self.begin_step
+        self.bar_batch_time.update(time.time() - self.start)
+        self.log_batch_time.update(time.time() - self.start)
+
+        Bar.suffix = '[{0}][{1}/{2}]|Tot: {total:} |ETA: {eta:} |Batch: {batch:.1f} '.format(
+            epoch, iter_id, self.total_iters, total=self.bar.elapsed_td, eta=self.bar.eta_td, batch=self.bar_batch_time.avg)
+        if len(losses) == 1:
+            self.bar_avg_loss['LOSS'].update(list(losses)[0], batch_size)
+            self.log_avg_loss['LOSS'].update(list(losses)[0], batch_size)
+            Bar.suffix += '|Loss: {:.4f} '.format(self.bar_avg_loss['LOSS'].avg)
+        else:
+            Bar.suffix += '|Loss '
+            for l_name, l_val in losses.items():
+                self.bar_avg_loss[l_name].update(l_val, batch_size)
+                self.log_avg_loss[l_name].update(l_val, batch_size)
+                Bar.suffix += '{}: {:.4f} '.format(l_name, self.bar_avg_loss[l_name].avg)
+        if len(lrs) == 1:
+            Bar.suffix += '|LR: {:.4f} '.format(list(lrs)[0])
+        else:
+            Bar.suffix += '|LR '
+            for lr_name, lr_val in lrs.items():
+                Bar.suffix += '|{}: {:.6f} '.format(lr_name, lr_val)
+        self.last_lrs = lrs
+        self.bar.next()
+
+        if step % self.logging_n == 0:
+            if len(losses) == 1:
+                log_str = 'Train [{0}, {1}][{2}/{3}]|Tot: {total:} |Batch: {batch:.1f}'.format(
+                    epoch, step, iter_id, self.total_iters, total=self.bar.elapsed_td, batch=self.log_batch_time.avg)
+                if len(losses) == 1:
+                    log_str += '|Loss: {:.4f} '.format(self.log_avg_loss['LOSS'].avg)
+                else:
+                    log_str += '|Loss '
+                    for l_name in losses.keys():
+                        log_str += '{}: {:.4f} '.format(l_name, self.log_avg_loss[l_name].avg)
+                if len(lrs) == 1:
+                    log_str += '|LR: {:.4f} '.format(list(lrs)[0])
+                else:
+                    log_str += '|LR '
+                    for lr_name, lr_val in lrs.items():
+                        log_str += '|{}: {:.6f} '.format(lr_name, lr_val)
+                self.logger.info(log_str)
+                for log_avg in self.log_avg_loss.values():
+                    log_avg.reset()
+                self.log_batch_time.reset()
+
+        # ============ TensorBoard logging ============#
+        info = {('loss/'+l): v for l,v in losses.items}
+        for tag, value in info.items():
+            writer.add_scalar(tag, value, step)
+
+        self.start = time.time()
+
+
+def save_checkpoint(path, trainer, epoch, step, metric, best_metric):
+    checkpoint = trainer.get_snapshot()
+    checkpoint['epoch'] = epoch
+    checkpoint['step'] = step
+    checkpoint['metric'] = metric
+    checkpoint['best_metric'] = best_metric
+    torch.save(checkpoint, path)
+
+
+def evaluate(evaluator, epoch=0, writer=None, logger=None):
+    start = time.time()
+    print('Starting Evaluation ...')
+    metric = evaluator.eval()
+    log_str = 'Evaluation Result: {:.3f} (t={:.0f}s)'.format(metric, time.time() - start)
+    print(log_str)
+    if logger is not None:
+        logger.info(log_str)
+    if writer is not None:
+        writer.add_scalar('metric/retrieval', metric, epoch)
+    return metric
+
 
 def train(opt, writer, logger):
-    # Setup seeds
-    torch.manual_seed(opt.manual_seed)
-    torch.cuda.manual_seed(opt.manual_seed)
-    np.random.seed(opt.manual_seed)
-    random.seed(opt.manual_seed)
-
-    # Setup device
-    os.environ['CUDA_VISIBLE_DEVICES'] = opt.gpus_str
-    device = torch.device('cuda' if opt.gpus[0] >= 0 else 'cpu')
-    cudnn.benchmark = True
+    # Load checkpoint
+    checkpoint = None
+    begin_epoch = 0
+    step = 0
+    best_metric = 0
+    metric = 0
+    if not opt.no_train and opt.train.resume_path is not None:
+        print('loading checkpoint {}'.format(opt.train.resume_path))
+        checkpoint = torch.load(opt.train.resume_path)
+        begin_epoch = checkpoint['epoch']
+        step = checkpoint['step']
+        metric = checkpoint['metric']
+        best_metric = checkpoint['best_metric']
 
     # Setup Models
-    teacher, student = get_models(opt.t_arch, opt.s_arch,
-                                  opt.n_outputs,
-                                  opt.t_pretrain_path,
-                                  opt.freeze_t_bbon)
-    teacher = teacher.to(device)
-    student = student.to(device)
+    teacher, student = get_teacher_student_models(opt, checkpoint)
 
-    # count parameter number
-    print('Teacher model:')
-    count_parameter_number(teacher)
+    # Print number of parameters
+    log_parameter_number(teacher, 'Teacher')
+    log_parameter_number(student, 'Student')
 
-    print('Student model:')
-    count_parameter_number(student)
+    if not opt.no_eval:
+        evaluator = get_evaluator(opt, student)
 
     if not opt.no_train:
-        spatial_transform = Compose([
-            MultiScaleCornerCrop(opt.scales, opt.sample_size),
-            RandomHorizontalFlip(),
-            ToTensor(opt.norm_value), 
-            Normalize(opt.mean, opt.std)
-        ])
-        temporal_transform = TemporalRandomCrop(opt.sample_duration)
-        target_transform = ClassLabel()
+        train_callback = TrainCallback(opt.run.exp_id, opt.train.logging_n, writer, logger)
+        trainer = get_trainer(opt, teacher, student, train_callback, checkpoint)
+        for epoch in range(begin_epoch+1, opt.train.n_epochs+1):
+            step = trainer.train(epoch, step)
+            if not opt.no_eval and epoch % opt.eval.epoch_n == 0:
+                metric = evaluate(evaluator, epoch, writer, logger)
+                if metric >= best_metric:
+                    best_metric = metric
+                    best_save_path = os.path.join(opt.result_path, 'best.pth'.format(epoch))
+                    save_checkpoint(best_save_path, trainer, epoch, step, metric, best_metric)
+            if epoch % opt.train.checkpoint == 0:
+                chk_save_path = os.path.join(opt.result_path, 'save_{}.pth'.format(epoch))
+                save_checkpoint(chk_save_path, trainer, epoch, step, metric, best_metric)
+            trainer.step_scheduler(epoch, metric)
 
-        training_data = get_training_set(opt, spatial_transform, temporal_transform, target_transform)
-        train_loader = data.DataLoader(training_data,
-                                       batch_size=opt.batch_size,
-                                       shuffle=True,
-                                       num_workers=opt.n_threads,
-                                       pin_memory=True)
-
-        optimizer = optim.SGD(student.parameters(),
-                              lr=opt.learning_rate,
-                              momentum=opt.momentum,
-                              dampening=opt.dampening,
-                              weight_decay=opt.weight_decay,
-                              nesterov=opt.nesterov)
-
-        scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=opt.lr_patience)
-
-    for i, (inputs, targets) in enumerate(train_loader):
-        if not opt.no_cuda:
-            targets = targets.cuda(async=True)
-        inputs = Variable(inputs.to(device))
-        # targets = Variable(targets)
-
-        student.train()
-        teacher.eval()
-
-        answer = teacher_inference(teacher, inputs, opt.temporal_pooling)
-
-        s_inputs = F.interpolate(inputs, scale_factor=(1.0, 0.5, 0.5), mode='nearest')
-        output = student(s_inputs)
-
-        if not opt.no_val:
-            val_acc = do_validation(student, opt, device, 'student')
+    elif not opt.no_eval:
+        evaluate(evaluator)
 
 
 if __name__ == '__main__':
     opt = opts().parse()
-    print(opt)
 
-    writer = SummaryWriter(log_dir=opt.save_path)
+    print("RUNDIR: {}".format(opt.run.save_path))
+    shutil.copy(opt.config_file, opt.run.save_path)
 
-    print("RUNDIR: {}".format(opt.save_path))
-    with open(os.path.join(opt.save_path, 'opts.json'), 'w') as opt_file:
-        json.dump(vars(opt), opt_file)
+    # Setup logger
+    writer = SummaryWriter(log_dir=opt.run.save_path)
+    logger = get_logger(opt.run.save_path)
+    log_str = "Starting Experiment {} at {:%Y-%m-%d %H:%M:%S}".format(opt.run.exp_id, datetime.date.today())
+    print(log_str)
+    logger.info(log_str)
 
-    logger = get_logger(opt.save_path)
-    logger.info("Let the games begin")
+    # Setup seeds
+    torch.manual_seed(opt.run.manual_seed)
+    torch.cuda.manual_seed(opt.run.manual_seed)
+    np.random.seed(opt.run.manual_seed)
+    random.seed(opt.run.manual_seed)
+
+    # Setup device
+    os.environ['CUDA_VISIBLE_DEVICES'] = ','.join([str(gpu) for gpu in opt.run.gpus])
+    if len(opt.run.gpus) > 0:
+        cudnn.benchmark = True
 
     train(opt, writer, logger)

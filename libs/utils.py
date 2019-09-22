@@ -5,6 +5,7 @@ import os
 import logging
 import datetime
 import numpy as np
+import torch
 
 from collections import OrderedDict
 
@@ -58,11 +59,11 @@ def get_logger(logdir):
     return logger
 
 
-def count_parameter_number(model):
+def log_parameter_number(model, model_name):
     total_params = sum(p.numel() for p in model.parameters())
     trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
-    print("Total number of parameters: %d" % total_params)
-    print("Total number of trainable parameters: %d" % trainable_params)
+    log_str = "Total number of trainable parameters / all parameters in %s: %d / %d" % model_name, trainable_params, total_params
+    print(log_str)
 
 
 def load_value_file(file_path):
@@ -70,3 +71,39 @@ def load_value_file(file_path):
         value = float(input_file.read().rstrip('\n\r'))
 
     return value
+
+
+def load_model(model, snapshot):
+    new_state_dict = OrderedDict()
+    for k, v in snapshot.items():
+        head = k[:7]
+        name = k[7:] if head == 'module.' else k
+        new_state_dict[name] = v
+    model.load_state_dict(new_state_dict, strict=False)
+
+
+def get_model_state(model):
+    def strip_DataParallel(net):
+        if isinstance(net, torch.nn.DataParallel):
+            return strip_DataParallel(net.module)
+        return net
+    return strip_DataParallel(model).state_dict()
+
+
+class AverageMeter(object):
+    """Computes and stores the average and current value"""
+    def __init__(self):
+        self.reset()
+
+    def reset(self):
+        self.val = 0
+        self.avg = 0
+        self.sum = 0
+        self.count = 0
+
+    def update(self, val, n=1):
+        self.val = val
+        self.sum += val * n
+        self.count += n
+        if self.count > 0:
+          self.avg = self.sum / self.count
