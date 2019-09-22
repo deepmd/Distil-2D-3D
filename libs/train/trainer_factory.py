@@ -7,3 +7,5 @@ def get_trainer(opt, teacher, student, callback=None, checkpoint=None):
         return ANCTrainer(opt, teacher, student, callback, checkpoint)
     elif opt.train.method == 'Hinton':
         return HintonTrainer(opt, teacher, student, callback, checkpoint)
+    else:
+        raise ValueError("There's no trainer method named '{}'!".format(opt.train.method))

@@ -14,6 +14,8 @@ class Loss(nn.Module):
             self.loss = F.cross_entropy
         elif name == 'BCE':
             self.loss = F.binary_cross_entropy_with_logits
+        else:
+            raise ValueError("There's no loss function named '{}'!".format(name))
         self.weight = weight
 
     def forward(self, inputs, targets):
@@ -25,8 +27,10 @@ class Regularizer(nn.Module):
     def __init__(self, name, weight):
         if name == 'L1':
             self.reg = partial(torch.norm, p=1)
-        if name == 'L2':
+        elif name == 'L2':
             self.reg = partial(torch.norm, p=2)
+        else:
+            raise ValueError("There's no regularizer named '{}'!".format(name))
         self.weight = weight
 
     def forward(self, parameters):

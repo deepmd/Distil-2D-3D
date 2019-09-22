@@ -10,7 +10,7 @@ class HintonTrainer(BaseTrainer):
         (https://arxiv.org/abs/1503.02531)
     """
     def __init__(self, opt, teacher, student, callback, checkpoint):
-        super(BaseTrainer, self).__init__(opt, teacher, student)
+        super(BaseTrainer, self).__init__(opt, teacher, student, callback)
 
         # Optimizer
         self.optimizer = self._define_optimizer(self.student.parameters(), opt.train.optimizer or opt.train.s_optimizer)
