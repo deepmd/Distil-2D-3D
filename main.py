@@ -35,16 +35,16 @@ class TrainCallback(object):
         self.start = time.time()
         self.last_lrs = dict()
 
-    def enb_epoch(self, epoch, step):
+    def end_epoch(self, epoch, step):
         self.bar.finish()
-        # ============ TensorBoard logging ============#
-        info = {('param/LR_' + l): v for l, v in self.last_lrs.items}
+        # ============ TensorBoard logging ============
+        info = {('param/LR_' + l): v for l, v in self.last_lrs.items()}
         for tag, value in info.items():
             writer.add_scalar(tag, value, epoch)
 
 
     def iter(self, epoch, step, losses, lrs, batch_size):
-        # ============ Progressbar & logging ============#
+        # ============ Progressbar & logging ============
         iter_id = step - self.begin_step
         self.bar_batch_time.update(time.time() - self.start)
         self.log_batch_time.update(time.time() - self.start)
@@ -91,7 +91,7 @@ class TrainCallback(object):
                     log_avg.reset()
                 self.log_batch_time.reset()
 
-        # ============ TensorBoard logging ============#
+        # ============ TensorBoard logging ============
         info = {('loss/'+l): v for l,v in losses.items}
         for tag, value in info.items():
             writer.add_scalar(tag, value, step)
@@ -111,14 +111,17 @@ def save_checkpoint(path, trainer, epoch, step, metric, best_metric):
 def evaluate(evaluator, epoch=0, writer=None, logger=None):
     start = time.time()
     print('Starting Evaluation ...')
-    metric = evaluator.eval()
-    log_str = 'Evaluation Result: {:.3f} (t={:.0f}s)'.format(metric, time.time() - start)
+    main_metric, all_metrics = evaluator.eval()
+    log_str = 'Evaluation Result (t={:.0f}s):  '.format(time.time() - start)
+    for m_name, m_val in all_metrics.items():
+        log_str += ' {}: {:.4f} '.format(m_name, m_val)
     print(log_str)
     if logger is not None:
         logger.info(log_str)
     if writer is not None:
-        writer.add_scalar('metric/retrieval', metric, epoch)
-    return metric
+        for m_name, m_val in all_metrics.items():
+            writer.add_scalar('metric/{}'.format(m_name), m_val, epoch)
+    return main_metric
 
 
 def train(opt, writer, logger):

@@ -147,7 +147,8 @@ class RetrieveClipsEval(object):
         with open(path.join(self.extracted_features_path, 'topk_correct.json'), 'w') as fp:
             json.dump(topk_correct, fp)
 
-        return {k: topk_correct[k]/len(X_test) for k in ks}
+        ret_acc = {'Top-{}'.format(k): topk_correct[k]/len(X_test) for k in ks}
+        return ret_acc['Top-5'], ret_acc
 
     def eval(self):
         if not path.exists(self.extracted_features_path):
