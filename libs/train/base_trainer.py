@@ -120,4 +120,11 @@ class BaseTrainer(object):
 
             return {'features': answer_feats, 'logits': answer_logits}
 
+    def get_snapshot(self):
+        pass
 
+    def train(self, epoch, step):
+        pass
+
+    def step_scheduler(self, epoch, metric):
+        pass

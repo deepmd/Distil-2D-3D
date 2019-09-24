@@ -43,6 +43,7 @@ class HintonTrainer(BaseTrainer):
         self.callback.begin_epoch(epoch, step, len(self.train_loader))
         for i, (inputs, targets) in enumerate(self.train_loader):
             step += 1
+            batch_size = inputs.shape[0]
 
             inputs = Variable(inputs.to(self.device))
 
@@ -63,7 +64,7 @@ class HintonTrainer(BaseTrainer):
             lrs = {
                 'Opt': self.optimizer.param_groups[0]['lr'],
             }
-            self.callback.iter(epoch, step, losses, lrs, inputs.shape[0])
+            self.callback.iter(epoch, step, losses, lrs, batch_size)
 
         self.callback.end_epoch(epoch, step)
         return step

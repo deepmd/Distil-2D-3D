@@ -58,6 +58,7 @@ train: # {if not exists in cfg no train will be done}
   logging_n: 50 # logging will be done at every this iteration.
 
 eval: # {if not exists in cfg no evaluation will be done}
+  method: # Evaluation method. Currently only support 'Retrieval'.
   n_threads: 4 # Number of threads for multi-thread loading [default=4]
   batch_size: 32 # Batch Size per gpu. [default=32]
   epoch_n: 1 # Evaluation will be done at every this epochs. [default=1]
