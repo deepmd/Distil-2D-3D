@@ -1,7 +1,7 @@
 model:
-  t_arch: # Model used as teacher (res18 | res34 | res50 | res101 | res152)
-  s_arch: # Model used as student (c3d | r3d | r21d)
-  d_arch: # Model used as discriminator {for relevant KD method}
+  t_arch: # Model used as teacher ('resnet18' | 'resnet34' | 'resnet50' | 'resnet101' | 'resnet152')
+  s_arch: # Model used as student ('c3d' | 'r3d' | 'r21d')
+  d_arch: # Model used as discriminator ('anc_discriminator') {for relevant KD method}
   n_classes: # Size of models's output. [default=activitynet: 200, kinetics: 400, ucf101: 101, hmdb51: 51]
   t_pretrain_path: # Path of weights to load into teacher model
   s_pretrain_path: # Path of weights to load into student model
@@ -17,10 +17,10 @@ train: # {if not exists in cfg no train will be done}
   n_threads: 4 # Number of threads for multi-thread loading [default=4]
   batch_size: 32 # Batch Size per gpu. [default=32]
   n_epochs: 200 # Number of total epochs to run. [default=200]
-  checkpoint: 10 # Trained models are saved at every this epochs. [default=10]
+  checkpoint: 1 # Trained models are saved at every this epochs. [default=1]
   temporal_pooling: # Temporal pooling of teacher ('AVG')
   data:
-    name: # Used dataset (activitynet | kinetics | ucf101 | hmdb51)
+    name: # Used dataset ('activitynet' | 'kinetics' | 'ucf101' | 'hmdb51')
     sample_size: 224 # Height and width of samples [default=224]
     sample_duration: 16 # Temporal duration of samples [default=16]
     norm_value: 255 # If 1, range of inputs is [0-255]. If 255, range of inputs is [0-1]. [default=255]
@@ -44,8 +44,8 @@ train: # {if not exists in cfg no train will be done}
     name: 'SGD' # ('SGD', 'Adam', 'RMSProp') [default='SGD']
     learning_rate: # Initial learning rate.
     momentum: 0 # Momentum [default=0]
-    dampening: 0.9 # dampening of SGD. [default=0.9]
-    weight_decay: 0.001 # Weight Decay. [default=1e-3]
+    dampening: 0 # dampening of SGD. [default=0]
+    weight_decay: 0 # Weight Decay. [default=0]
     nesterov: False # Nesterov momentum for SGD. [default=False]
   scheduler: # If needed to have multiple scheduler cfg for discriminator and student use d_scheduler and s_scheduler
     name: # ('ReduceLROnPlateau', 'MultiStep', 'Exponential')
@@ -63,8 +63,7 @@ eval: # {if not exists in cfg no evaluation will be done}
   batch_size: 32 # Batch Size per gpu. [default=32]
   epoch_n: 1 # Evaluation will be done at every this epochs. [default=1]
   data:
-    name: # Used dataset (ucf101 | hmdb51)
+    name: # Used dataset ('ucf101' | 'hmdb51')
     norm_value: 255 # If 1, range of inputs is [0-255]. If 255, range of inputs is [0-1]. [default=255]
     mean: # mean values used for normalizing. Set [0, 0, 0] for no mean. [default=dataset specific mean]
     std: # std values used for normalizing. Set [1, 1, 1] for no std. [default=dataset specific std]
-

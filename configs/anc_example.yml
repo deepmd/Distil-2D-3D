@@ -1,0 +1,56 @@
+model:
+  t_arch: 'resnet18'
+  s_arch: 'r3d'
+  d_arch: 'anc_discriminator'
+  n_classes: 1000
+  t_pretrain_path: 'weights/resnet18-5c106cde.pth'
+
+run:
+  exp_path: 'exps'
+  gpus: 0
+  manual_seed: 1
+
+train:
+  method: 'ANC'
+  n_threads: 10
+  batch_size: 16 # in paper total batch_size (batch_size*n_gpus) is 128
+  n_epochs: 200
+  checkpoint: 1
+  temporal_pooling: 'AVG'
+  data:
+    name: 'ucf101'
+    sample_size: 224
+    sample_duration: 16
+    norm_value: 255
+    initial_scale: 1.0
+    n_scales: 5
+    scale_step: 0.84089641525
+    train_crop: 'corner'
+  adv_loss:
+    name: 'BCE'
+    weight: 1
+  sim_loss:
+    name: 'L2'
+    weight: 1
+  d_reg:
+    name: 'FakeAsReal'
+    weight: 1
+  optimizer:
+    name: 'SGD'
+    learning_rate: 0.001
+    momentum: 0.9 # ?? its value has not been not specified in paper
+    weight_decay: 0.0002
+  scheduler:
+    name: 'MultiStep'
+    milestones: [80]
+    gamma: 0.1
+  logging_n: 10
+
+eval:
+  method: 'Retrieval'
+  n_threads: 10
+  batch_size: 8
+  epoch_n: 1
+  data:
+    name: 'hmdb51'
+    norm_value: 255

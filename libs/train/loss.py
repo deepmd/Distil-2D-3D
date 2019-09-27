@@ -6,6 +6,7 @@ from functools import partial
 
 class Loss(nn.Module):
     def __init__(self, name, weight):
+        super(Loss, self).__init__()
         if name == 'L1':
             self.loss = F.l1_loss
         elif name == 'L2':
@@ -25,6 +26,7 @@ class Loss(nn.Module):
 
 class Regularizer(nn.Module):
     def __init__(self, name, weight):
+        super(Regularizer, self).__init__()
         if name == 'L1':
             self.reg = partial(torch.norm, p=1)
         elif name == 'L2':

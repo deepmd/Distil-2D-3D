@@ -1,5 +1,4 @@
 import torch
-from torch.autograd import Variable
 from torch.nn import functional as F
 
 from libs.train.base_trainer import BaseTrainer
@@ -13,7 +12,7 @@ class ANCTrainer(BaseTrainer):
         (http://arxiv.org/abs/1803.10750)
     """
     def __init__(self, opt, teacher, student, callback, checkpoint):
-        super(BaseTrainer, self).__init__(opt, teacher, student, callback)
+        super(ANCTrainer, self).__init__(opt, teacher, student, callback)
 
         in_size = teacher.fc.in_features  # todo: for resnet50 and upper, it is 512 * 4 !!
         self.discriminator = get_discriminator(opt, in_size, checkpoint)
@@ -39,7 +38,7 @@ class ANCTrainer(BaseTrainer):
         param_regs = []
         output_regs = []
         if opt is not None:
-            names = opt.name if opt.name is list else list(opt.name)
+            names = opt.name if opt.name is list else [opt.name]
             if 'L1' in names:
                 param_regs.append(Regularizer('L1', opt.weight))
             if 'L2' in names:
@@ -74,7 +73,7 @@ class ANCTrainer(BaseTrainer):
             step += 1
             batch_size = inputs.shape[0]
 
-            inputs = Variable(inputs.to(self.device))
+            inputs = inputs.to(self.device)
 
             t_outputs = self._teacher_inference(inputs)
 
@@ -82,13 +81,13 @@ class ANCTrainer(BaseTrainer):
             s_outputs = self.student(s_inputs)
             s_outputs_adv = self.student(s_inputs, dropout=0.5)
 
-            d_t_outputs = self.discriminator(t_outputs['features'])
-            d_s_outputs = self.discriminator(s_outputs['features'])
-            d_s_outputs_adv = self.discriminator(s_outputs_adv['features'])
+            d_t_outputs = self.discriminator(t_outputs['features']).squeeze(dim=1)
+            d_s_outputs = self.discriminator(s_outputs['features']).squeeze(dim=1)
+            d_s_outputs_adv = self.discriminator(s_outputs_adv['features']).squeeze(dim=1)
 
             # Adversarial ground truths
-            valid = Variable(torch.ones(batch_size).to(self.device), requires_grad=False)
-            fake = Variable(torch.zeros(batch_size).to(self.device), requires_grad=False)
+            valid = torch.ones(batch_size).to(self.device)
+            fake = torch.zeros(batch_size).to(self.device)
 
             # -----------------
             #  Train Generator/Student
@@ -98,7 +97,6 @@ class ANCTrainer(BaseTrainer):
             s_adv_loss = self.adversarial_loss(d_s_outputs_adv, valid)
             s_sim_loss = self.similarity_loss(s_outputs['logits'], t_outputs['logits'])
             s_loss = s_adv_loss + s_sim_loss
-
             s_loss.backward()
             self.optimizer_G.step()
 
@@ -106,13 +104,14 @@ class ANCTrainer(BaseTrainer):
             #  Train Discriminator
             # ---------------------
 
+            # d_s_outputs, and d_s_outputs_adv should be detached otherwise loss.backward() will
+            # be calculated on the student network in addition to the discriminator network
             self.optimizer_D.zero_grad()
             d_real_loss = self.adversarial_loss(d_t_outputs, valid)
-            d_fake_loss = self.adversarial_loss(d_s_outputs, fake)
+            d_fake_loss = self.adversarial_loss(d_s_outputs.detach(), fake)
             d_adv_loss = d_real_loss + d_fake_loss
-            d_reg_loss = self.regularizer_loss(d_s_outputs_adv, valid)
+            d_reg_loss = self.regularizer_loss(d_s_outputs_adv.detach(), valid)
             d_loss = d_adv_loss + d_reg_loss
-
             d_loss.backward()
             self.optimizer_D.step()
 
@@ -127,11 +126,11 @@ class ANCTrainer(BaseTrainer):
                 'Opt_G': self.optimizer_G.param_groups[0]['lr'],
                 'Opt_D': self.optimizer_D.param_groups[0]['lr']
             }
-            self.callback.iter(epoch, step, losses, lrs, batch_size)
+            self.callback.end_iter(epoch, step, losses, lrs, batch_size)
 
         self.callback.end_epoch(epoch, step)
         return step
 
     def step_scheduler(self, epoch, metric):
-        self.scheduler_G.step(epoch, metric)
-        self.scheduler_D.step(epoch, metric)
+        self.scheduler_G(epoch, metric)
+        self.scheduler_D(epoch, metric)

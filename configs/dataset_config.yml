@@ -15,17 +15,17 @@ kinetics:
   std: [38.7568578, 37.88248729, 40.02898126]
 
 ucf101:
-  root_path: ''
-  jpg_video_path: ''
-  avi_video_path: ''
-  annotation_path: ''
-  mean: [?, ?, ?]
+  root_path: '../Datasets/UCF101'
+  jpg_video_path: 'jpg'
+  avi_video_path: 'avi'
+  annotation_path: 'annotations/ucf101_01.json'
+  mean: [101.00131, 97.3644226, 89.42114168] # from https://github.com/tomrunia/PyTorchConv3D
   std: [38.7568578, 37.88248729, 40.02898126]
 
 hmdb51:
-  data_path: ''
-  jpg_video_path: ''
-  avi_video_path: ''
-  annotation_path: ''
-  mean: [?, ?, ?]
+  root_path: '../Datasets/HMDB51'
+  jpg_video_path: 'jpg'
+  avi_video_path: 'avi'
+  annotation_path: 'annotations/hmdb51_1.json'
+  mean: [110.63666788, 103.16065604, 96.29023126] # ???
   std: [38.7568578, 37.88248729, 40.02898126]

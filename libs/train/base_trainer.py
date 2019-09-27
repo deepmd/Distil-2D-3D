@@ -30,7 +30,7 @@ class BaseTrainer(object):
         temporal_transform = TemporalRandomCrop(opt.train.data.sample_duration)
         target_transform = ClassLabel()
 
-        training_data = get_training_set(opt, spatial_transform, temporal_transform, target_transform)
+        training_data = get_training_set(opt.train, spatial_transform, temporal_transform, target_transform)
         self.train_loader = data.DataLoader(training_data,
                                             batch_size=opt.train.batch_size,
                                             shuffle=True,
@@ -75,10 +75,10 @@ class BaseTrainer(object):
                                               min_lr=opt.get('min_lr', 0),
                                               eps=opt.get('eps', 1e-8))
             return lambda epoch, metric: scheduler.step(metric, epoch)
-        elif opt.name == 'MultiStepLR':
+        elif opt.name == 'MultiStep':
             scheduler = lrs.MultiStepLR(optimizer, milestones=opt.milestones, gamma=opt.gamma)
             return lambda epoch, metric: scheduler.step(epoch)
-        elif opt.name == 'ExponentialLR':
+        elif opt.name == 'Exponential':
             scheduler = lrs.ExponentialLR(optimizer, gamma=opt.gamma)
             return lambda epoch, metric: scheduler.step(epoch)
         else:

@@ -125,6 +125,7 @@ class ResNet(nn.Module):
         if norm_layer is None:
             norm_layer = nn.BatchNorm2d
         self._norm_layer = norm_layer
+        self.num_outputs = num_outputs
 
         self.inplanes = 64
         self.dilation = 1

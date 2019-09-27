@@ -1,4 +1,3 @@
-from torch.autograd import Variable
 from torch.nn import functional as F
 
 from libs.train.base_trainer import BaseTrainer
@@ -10,7 +9,7 @@ class HintonTrainer(BaseTrainer):
         (https://arxiv.org/abs/1503.02531)
     """
     def __init__(self, opt, teacher, student, callback, checkpoint):
-        super(BaseTrainer, self).__init__(opt, teacher, student, callback)
+        super(HintonTrainer, self).__init__(opt, teacher, student, callback)
 
         # Optimizer
         self.optimizer = self._define_optimizer(self.student.parameters(), opt.train.optimizer or opt.train.s_optimizer)
@@ -18,8 +17,8 @@ class HintonTrainer(BaseTrainer):
             self.optimizer.load_state_dict(checkpoint['optimizer'])
 
         # Loss function
+        T = opt.train.sim_loss.temperature
         def loss_fn(s_logits, t_logits):
-            T = opt.train.sim_loss.temperature
             loss = F.kl_div(F.log_softmax(s_logits / T, dim=1),
                             F.softmax(t_logits / T, dim=1), reduction='batchmean')
             return loss
@@ -45,7 +44,7 @@ class HintonTrainer(BaseTrainer):
             step += 1
             batch_size = inputs.shape[0]
 
-            inputs = Variable(inputs.to(self.device))
+            inputs = inputs.to(self.device)
 
             t_outputs = self._teacher_inference(inputs)
 
@@ -54,7 +53,6 @@ class HintonTrainer(BaseTrainer):
 
             self.optimizer.zero_grad()
             loss = self.similarity_loss(s_outputs['logits'], t_outputs['logits'])
-
             loss.backward()
             self.optimizer.step()
 
@@ -64,10 +62,10 @@ class HintonTrainer(BaseTrainer):
             lrs = {
                 'Opt': self.optimizer.param_groups[0]['lr'],
             }
-            self.callback.iter(epoch, step, losses, lrs, batch_size)
+            self.callback.end_iter(epoch, step, losses, lrs, batch_size)
 
         self.callback.end_epoch(epoch, step)
         return step
 
     def step_scheduler(self, epoch, metric):
-        self.scheduler.step(epoch, metric)
+        self.scheduler(epoch, metric)

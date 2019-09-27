@@ -22,10 +22,10 @@ class opts(object):
         )
 
         with open('configs/dataset_config.yml') as fp:
-            self.dataset_cfg = yaml.load(fp)
+            self.dataset_cfg = yaml.load(fp, Loader=yaml.FullLoader)
 
         with open('configs/default_config.yml') as fp:
-            self.default_opt = yaml.load(fp)
+            self.default_opt = yaml.load(fp, Loader=yaml.FullLoader)
 
         self.default_opt['train']['s_optimizer'] = self.default_opt['train']['optimizer']
         self.default_opt['train']['d_optimizer'] = self.default_opt['train']['optimizer']
@@ -36,31 +36,30 @@ class opts(object):
         result = DictAsMember()
         for key, value in template.items():
             if key in source and source[key] is not None:
-                result[key] = source[key]
-            elif not isinstance(value, dict):
+                result[key] = self._update_params(value, source[key]) if isinstance(value, dict) else source[key]
+            else:
                 # assume the template value is a default
                 result[key] = value
-            else:
-                # recurse
-                result[key] = self.update_nested_params(value, source)
         return result
 
     def parse(self):
         args = self.parser.parse_args()
         with open(args.config) as fp:
-            override_opt = yaml.load(fp)
+            override_opt = yaml.load(fp, Loader=yaml.FullLoader)
 
         opt = self._update_params(self.default_opt, override_opt)
 
         if opt['run']['gpus'] == -1:
             opt['run']['gpus'] = []
         elif opt['run']['gpus'] is not list:
-            opt['run']['gpus'] = list(opt['run']['gpus'])
+            opt['run']['gpus'] = [opt['run']['gpus']]
 
         if 'train' not in override_opt:
             del opt['train']
             opt['no_train'] = True
         else:
+            opt['no_train'] = False
+
             opt['train']['batch_size'] *= max(1, len(opt['run']['gpus']))
 
             train_dataset_cfg = self.dataset_cfg[opt['train']['data']['name']]
@@ -101,13 +100,15 @@ class opts(object):
             del opt['eval']
             opt['no_eval'] = True
         else:
+            opt['no_eval'] = False
+
             opt['eval']['batch_size'] *= max(1, len(opt['run']['gpus']))
 
             eval_dataset_cfg = self.dataset_cfg[opt['eval']['data']['name']]
             opt['eval']['data']['video_path'] = path.join(eval_dataset_cfg['root_path'],
                                                           eval_dataset_cfg['avi_video_path'])
             opt['eval']['data']['annotation_path'] = path.join(eval_dataset_cfg['root_path'],
-                                                               eval_dataset_cfg['annotation_path'])
+                                                               path.dirname(eval_dataset_cfg['annotation_path']))
 
             if opt['eval']['data']['mean'] is None:
                 opt['eval']['data']['mean'] = [v / opt['eval']['data']['norm_value'] for v in eval_dataset_cfg['mean']]
@@ -116,8 +117,9 @@ class opts(object):
 
         if opt['run']['exp_id'] is None:
             opt['run']['exp_id'] = random.randint(1, 100000)
-        opt['run']['save_path'] = path.join(opt['run']['exp_path'], opt['run']['exp_id'])
+        config_name = path.splitext(path.basename(args.config))[0]
+        opt['run']['save_path'] = path.join(opt['run']['exp_path'], config_name, str(opt['run']['exp_id']))
 
-        opt['cfg_file'] = args.config
+        opt['config_file'] = args.config
 
         return opt

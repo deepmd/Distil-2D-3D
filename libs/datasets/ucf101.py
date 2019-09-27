@@ -96,8 +96,8 @@ def make_dataset(root_path, annotation_path, subset, n_samples_for_each_video,
 
     dataset = []
     for i in range(len(video_names)):
-        if i % 1000 == 0:
-            print('dataset loading [{}/{}]'.format(i, len(video_names)))
+        # if i % 1000 == 0:
+        #     print('dataset loading [{}/{}]'.format(i, len(video_names)))
 
         video_path = os.path.join(root_path, video_names[i])
         if not os.path.exists(video_path):
@@ -218,21 +218,20 @@ class UCF101ClipRetrievalDataset(data.Dataset):
     def __init__(self, video_path, annotation_path, clip_len, sample_num, train=True, transforms_=None):
         # self.root_dir = root_dir
         self.video_path = video_path
-        self.annotation_path = annotation_path
         self.clip_len = clip_len
         self.sample_num = sample_num
         self.train = train
         self.transforms_ = transforms_
         self.toPIL = transforms.ToPILImage()
-        class_idx_path = os.path.join(self.annotation_path, 'classInd.txt')
+        class_idx_path = os.path.join(annotation_path, 'classInd.txt')
         self.class_idx2label = pd.read_csv(class_idx_path, header=None, sep=' ').set_index(0)[1]
         self.class_label2idx = pd.read_csv(class_idx_path, header=None, sep=' ').set_index(1)[0]
 
         if self.train:
-            train_split_path = os.path.join(self.annotation_path, 'trainlist01.txt')
+            train_split_path = os.path.join(annotation_path, 'trainlist01.txt')
             self.train_split = pd.read_csv(train_split_path, header=None, sep=' ')[0]
         else:
-            test_split_path = os.path.join(self.annotation_path, 'testlist01.txt')
+            test_split_path = os.path.join(annotation_path, 'testlist01.txt')
             self.test_split = pd.read_csv(test_split_path, header=None)[0]
 
     def __len__(self):

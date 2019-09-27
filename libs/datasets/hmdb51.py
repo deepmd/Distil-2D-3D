@@ -3,6 +3,7 @@ import torch.utils.data as data
 from torchvision import transforms
 
 import skvideo.io
+import numpy as np
 import pandas as pd
 from PIL import Image
 import os
@@ -95,8 +96,8 @@ def make_dataset(root_path, annotation_path, subset, n_samples_for_each_video,
 
     dataset = []
     for i in range(len(video_names)):
-        if i % 1000 == 0:
-            print('dataset loading [{}/{}]'.format(i, len(video_names)))
+        # if i % 1000 == 0:
+        #     print('dataset loading [{}/{}]'.format(i, len(video_names)))
 
         video_path = os.path.join(root_path, video_names[i])
         if not os.path.exists(video_path):
@@ -214,22 +215,22 @@ class HMDB51ClipRetrievalDataset(data.Dataset):
         transforms_ (object): composed transforms which takes in PIL image and output tensors.
     """
 
-    def __init__(self, root_dir, clip_len, sample_num, train=True, transforms_=None):
-        self.root_dir = root_dir
+    def __init__(self, video_path, annotation_path, clip_len, sample_num, train=True, transforms_=None):
+        self.video_path = video_path
         self.clip_len = clip_len
         self.sample_num = sample_num
         self.train = train
         self.transforms_ = transforms_
         self.toPIL = transforms.ToPILImage()
-        class_idx_path = os.path.join(root_dir, 'split', 'classInd.txt')
+        class_idx_path = os.path.join(annotation_path, 'classInd.txt')
         self.class_idx2label = pd.read_csv(class_idx_path, header=None, sep=' ').set_index(0)[1]
         self.class_label2idx = pd.read_csv(class_idx_path, header=None, sep=' ').set_index(1)[0]
 
         if self.train:
-            train_split_path = os.path.join(root_dir, 'split', 'trainlist01.txt')
+            train_split_path = os.path.join(annotation_path, 'trainlist01.txt')
             self.train_split = pd.read_csv(train_split_path, header=None, sep=' ')[0]
         else:
-            test_split_path = os.path.join(root_dir, 'split', 'testlist01.txt')
+            test_split_path = os.path.join(annotation_path, 'testlist01.txt')
             self.test_split = pd.read_csv(test_split_path, header=None)[0]
 
     def __len__(self):
@@ -249,7 +250,7 @@ class HMDB51ClipRetrievalDataset(data.Dataset):
         else:
             videoname = self.test_split[idx]
         class_idx = self.class_label2idx[videoname[:videoname.find('/')]]
-        filename = os.path.join(self.root_dir, 'video', videoname)
+        filename = os.path.join(self.video_path, videoname)
 
         videodata = skvideo.io.vread(filename)
         length, height, width, channel = videodata.shape

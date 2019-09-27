@@ -54,10 +54,10 @@ def get_validation_set(opt, spatial_transform, temporal_transform,
             opt.data.video_path,
             opt.data.annotation_path,
             'validation',
-            opt.val.n_val_samples,
-            spatial_transform,
-            temporal_transform,
-            target_transform,
+            n_samples_for_each_video=opt.data.n_val_samples,
+            spatial_transform=spatial_transform,
+            temporal_transform=temporal_transform,
+            target_transform=target_transform,
             sample_duration=opt.data.sample_duration)
     elif opt.data.name == 'activitynet':
         validation_data = ActivityNet(
@@ -65,29 +65,30 @@ def get_validation_set(opt, spatial_transform, temporal_transform,
             opt.data.annotation_path,
             'validation',
             False,
-            opt.val.n_val_samples,
-            spatial_transform,
-            temporal_transform,
-            target_transform,
+            n_samples_for_each_video=opt.data.n_val_samples,
+            spatial_transform=spatial_transform,
+            temporal_transform=temporal_transform,
+            target_transform=target_transform,
             sample_duration=opt.data.sample_duration)
     elif opt.data.name == 'ucf101':
         validation_data = UCF101(
             opt.data.video_path,
             opt.data.annotation_path,
             'validation',
-            opt.val.n_val_samples,
-            spatial_transform,
-            temporal_transform,
-            target_transform,
+            n_samples_for_each_video=opt.data.n_val_samples,
+            spatial_transform=spatial_transform,
+            temporal_transform=temporal_transform,
+            target_transform=target_transform,
             sample_duration=opt.data.sample_duration)
     elif opt.data.name == 'hmdb51':
         validation_data = HMDB51(
             opt.data.video_path,
             opt.data.annotation_path,
             'validation',
-            opt.val.n_val_samples,
-            spatial_transform,
-            temporal_transform,
-            target_transform,
+            n_samples_for_each_video=opt.data.n_val_samples,
+            spatial_transform=spatial_transform,
+            temporal_transform=temporal_transform,
+            target_transform=target_transform,
             sample_duration=opt.data.sample_duration)
+
     return validation_data

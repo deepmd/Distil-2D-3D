@@ -61,7 +61,8 @@ def get_logger(logdir):
 def log_parameter_number(model, model_name):
     total_params = sum(p.numel() for p in model.parameters())
     trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
-    log_str = "Total number of trainable parameters / all parameters in %s: %d / %d" % model_name, trainable_params, total_params
+    log_str = 'Total number of trainable parameters / all parameters in {}: {} / {}'\
+        .format(model_name, trainable_params, total_params)
     print(log_str)
 
 
