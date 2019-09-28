@@ -51,8 +51,9 @@ class HintonTrainer(BaseTrainer):
             s_inputs = F.interpolate(inputs, scale_factor=(1.0, 0.5, 0.5), mode='nearest')
             s_outputs = self.student(s_inputs)
 
-            self.optimizer.zero_grad()
             loss = self.similarity_loss(s_outputs['logits'], t_outputs['logits'])
+
+            self.optimizer.zero_grad()
             loss.backward()
             self.optimizer.step()
 

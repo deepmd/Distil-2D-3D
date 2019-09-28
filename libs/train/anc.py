@@ -81,10 +81,6 @@ class ANCTrainer(BaseTrainer):
             s_outputs = self.student(s_inputs)
             s_outputs_adv = self.student(s_inputs, dropout=0.5)
 
-            d_t_outputs = self.discriminator(t_outputs['features']).squeeze(dim=1)
-            d_s_outputs = self.discriminator(s_outputs['features']).squeeze(dim=1)
-            d_s_outputs_adv = self.discriminator(s_outputs_adv['features']).squeeze(dim=1)
-
             # Adversarial ground truths
             valid = torch.ones(batch_size).to(self.device)
             fake = torch.zeros(batch_size).to(self.device)
@@ -93,10 +89,12 @@ class ANCTrainer(BaseTrainer):
             #  Train Generator/Student
             # -----------------
 
-            self.optimizer_G.zero_grad()
+            d_s_outputs_adv = self.discriminator(s_outputs_adv['features']).squeeze(dim=1)
             s_adv_loss = self.adversarial_loss(d_s_outputs_adv, valid)
             s_sim_loss = self.similarity_loss(s_outputs['logits'], t_outputs['logits'])
             s_loss = s_adv_loss + s_sim_loss
+
+            self.optimizer_G.zero_grad()
             s_loss.backward()
             self.optimizer_G.step()
 
@@ -104,14 +102,18 @@ class ANCTrainer(BaseTrainer):
             #  Train Discriminator
             # ---------------------
 
-            # d_s_outputs, and d_s_outputs_adv should be detached otherwise loss.backward() will
+            # s_outputs, and s_outputs_adv should be detached otherwise loss.backward() will
             # be calculated on the student network in addition to the discriminator network
-            self.optimizer_D.zero_grad()
+            d_t_outputs = self.discriminator(t_outputs['features']).squeeze(dim=1)
+            d_s_outputs = self.discriminator(s_outputs['features'].detach()).squeeze(dim=1)
+            d_s_outputs_adv = self.discriminator(s_outputs_adv['features'].detach()).squeeze(dim=1)
             d_real_loss = self.adversarial_loss(d_t_outputs, valid)
-            d_fake_loss = self.adversarial_loss(d_s_outputs.detach(), fake)
+            d_fake_loss = self.adversarial_loss(d_s_outputs, fake)
             d_adv_loss = d_real_loss + d_fake_loss
-            d_reg_loss = self.regularizer_loss(d_s_outputs_adv.detach(), valid)
+            d_reg_loss = self.regularizer_loss(d_s_outputs_adv, valid)
             d_loss = d_adv_loss + d_reg_loss
+
+            self.optimizer_D.zero_grad()
             d_loss.backward()
             self.optimizer_D.step()
 
