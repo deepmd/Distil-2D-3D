@@ -1,15 +1,13 @@
 from torch.nn import functional as F
 
 from libs.train.base_trainer import BaseTrainer
+from libs.train.loss import Loss
 from libs.utils import get_model_state
 
 
-class HintonTrainer(BaseTrainer):
-    """ Hinton et al., Distilling the Knowledge in a Neural Network
-        (https://arxiv.org/abs/1503.02531)
-    """
+class SimpleTrainer(BaseTrainer):
     def __init__(self, opt, teacher, student, callback, checkpoint):
-        super(HintonTrainer, self).__init__(opt, teacher, student, callback)
+        super(SimpleTrainer, self).__init__(opt, teacher, student, callback)
 
         # Optimizer
         self.optimizer = self._define_optimizer(self.student.parameters(), opt.train.optimizer or opt.train.s_optimizer)
@@ -18,15 +16,14 @@ class HintonTrainer(BaseTrainer):
 
         # Loss function
         T = opt.train.sim_loss.temperature
+        loss = Loss(opt.train.sim_loss.name, opt.train.sim_loss.weight)
         def loss_fn(s_logits, t_logits):
-            loss = F.kl_div(F.log_softmax(s_logits / T, dim=1),
-                            F.softmax(t_logits / T, dim=1), reduction='batchmean')
-            return loss
+            loss_value = loss(s_logits/T, t_logits/T)
+            return loss_value
         self.similarity_loss = loss_fn
 
         # Schedulers
-        last_epoch = -1 if checkpoint is None else checkpoint['begin_epoch']
-        self.scheduler = self._define_scheduler(self.optimizer, opt.train.scheduler or opt.train.s_scheduler, last_epoch)
+        self.scheduler = self._define_scheduler(self.optimizer, opt.train.scheduler or opt.train.s_scheduler)
 
     def get_snapshot(self):
         return {
@@ -61,7 +58,7 @@ class HintonTrainer(BaseTrainer):
                 'Loss': loss.mean().item()
             }
             lrs = {
-                'Opt': self.optimizer.param_groups[0]['lr'],
+                'Opt': self.optimizer.param_groups[0]['lr']
             }
             self.callback.end_iter(epoch, step, losses, lrs, batch_size)
 

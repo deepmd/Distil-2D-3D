@@ -54,8 +54,8 @@ class TrainCallback(object):
         Bar.suffix = '[{0}][{1}/{2}]|Tot: {total:} |ETA: {eta:} |Bch: {batch:.1f}s '.format(
             epoch, iter_id, self.total_iters, total=self.bar.elapsed_td, eta=self.bar.eta_td, batch=self.bar_batch_time.avg)
         if len(losses) == 1:
-            self.bar_avg_loss['LOSS'].update(list(losses)[0], batch_size)
-            self.log_avg_loss['LOSS'].update(list(losses)[0], batch_size)
+            self.bar_avg_loss['LOSS'].update(list(losses.values())[0], batch_size)
+            self.log_avg_loss['LOSS'].update(list(losses.values())[0], batch_size)
             Bar.suffix += '|Loss: {:.4f} '.format(self.bar_avg_loss['LOSS'].avg)
         else:
             Bar.suffix += '|Loss '
@@ -64,7 +64,7 @@ class TrainCallback(object):
                 self.log_avg_loss[l_name].update(l_val, batch_size)
                 Bar.suffix += '{}: {:.4f} '.format(l_name, self.bar_avg_loss[l_name].avg)
         if len(lrs) == 1:
-            Bar.suffix += '|LR: {:.4f} '.format(list(lrs)[0])
+            Bar.suffix += '|LR: {:.4f} '.format(list(lrs.values())[0])
         else:
             Bar.suffix += '|LR '
             for lr_name, lr_val in lrs.items():
@@ -83,7 +83,7 @@ class TrainCallback(object):
                 for l_name in losses.keys():
                     log_str += '{}: {:.4f} '.format(l_name, self.log_avg_loss[l_name].avg)
             if len(lrs) == 1:
-                log_str += '|LR: {:.4f} '.format(list(lrs)[0])
+                log_str += '|LR: {:.4f} '.format(list(lrs.values())[0])
             else:
                 log_str += '|LR '
                 for lr_name, lr_val in lrs.items():

@@ -26,7 +26,7 @@ class ANCTrainer(BaseTrainer):
             self.optimizer_D.load_state_dict(checkpoint['optimizer_D'])
 
         # Loss function
-        self.similarity_loss = self._define_loss(opt.train.sim_loss)
+        self.similarity_loss = Loss(opt.train.sim_loss.name, opt.train.sim_loss.weight)
         self.adversarial_loss = Loss('BCE', opt.train.adv_loss.weight)  # todo: WGAN, ...
         self.regularizer_loss = self._define_reg(opt.train.d_reg)
 

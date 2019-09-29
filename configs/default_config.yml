@@ -13,7 +13,7 @@ run:
   manual_seed: 1 # Manually set random seed. [default=1]
 
 train: # {if not exists in cfg no train will be done}
-  method: # Knowledge distillation train method ('ANC', 'Hinton')
+  method: # Knowledge distillation train method ('ANC', 'Simple')
   n_threads: 4 # Number of threads for multi-thread loading [default=4]
   batch_size: 32 # Batch Size per gpu. [default=32]
   n_epochs: 200 # Number of total epochs to run. [default=200]
@@ -34,9 +34,9 @@ train: # {if not exists in cfg no train will be done}
     name: 'BCE' # Currently only support BCE. todo: WGAN, ...
     weight: 1 # Weight of this loss in total loss. [default=1]
   sim_loss:
-    name: # Type of similarity loss between logits ('L1', 'L2', 'CE')
+    name: # Type of similarity loss between logits/probabilities ('L1', 'L2', 'CE', 'KL_DIV')
     weight: 1 # Weight of this loss in total loss. [default=1]
-    temperature: # Temperature used in Hinton KD
+    temperature: 1 # Temperature used to soften probabilities [default=1]
   d_reg: # {if discriminator regularizer required}
     name: # Type of discriminator regularizer ('L1', 'L2', 'FakeAsReal' or a list of them)
     weight: 1 # Weight of this loss in total loss. [default=1]

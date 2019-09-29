@@ -12,7 +12,7 @@ class ANCDiscriminator(nn.Module):
             nn.ReLU(inplace=True),
             nn.Linear(256, 128),
             nn.ReLU(inplace=True),
-            nn.Linear(128, 1),
+            nn.Linear(128, 1)
         )
 
     def forward(self, input):

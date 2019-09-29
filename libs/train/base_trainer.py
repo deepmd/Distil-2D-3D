@@ -1,6 +1,5 @@
 import torch
 from torch.utils import data
-import torch.nn.functional as F
 import torch.optim.lr_scheduler as lrs
 import torch.optim as optim
 
@@ -9,7 +8,6 @@ from libs.temporal_transforms import TemporalRandomCrop, LoopPadding
 from libs.target_transforms import ClassLabel
 from libs.datasets.dataset_factory import get_training_set
 from libs.spatial_transforms import MultiScaleCornerCrop
-from libs.train.loss import Loss
 
 
 class BaseTrainer(object):
@@ -64,7 +62,9 @@ class BaseTrainer(object):
             raise ValueError("There's no optimizer named '{}'!".format(opt.name))
 
     def _define_scheduler(self, optimizer, opt):
-        if opt.name == 'ReduceLROnPlateau':
+        if opt is None:
+            return lambda epoch, metric: None
+        elif opt.name == 'ReduceLROnPlateau':
             scheduler = lrs.ReduceLROnPlateau(optimizer, mode=opt.get('mode', 'max'),
                                               factor=opt.decay_factor,
                                               patience=opt.patience,
@@ -83,20 +83,6 @@ class BaseTrainer(object):
             return lambda epoch, metric: scheduler.step(epoch)
         else:
             raise ValueError("There's no scheduler named '{}'!".format(opt.name))
-
-    def _define_loss(self, opt, logit_target=True):
-        loss = Loss(opt.name, opt.weight)
-        target_transform = lambda x: x
-        if logit_target and opt.name == 'CE':
-            target_transform = F.softmax
-        elif logit_target and opt.name == 'BCE':
-            target_transform = F.sigmoid
-
-        def calc_loss(outputs, targets):
-            targets = target_transform(targets)
-            return loss(outputs, targets)
-
-        return calc_loss
 
     def _teacher_inference(self, inputs):
         if self.temporal_pooling == 'AVG':

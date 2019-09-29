@@ -1,0 +1,49 @@
+model:
+  t_arch: 'resnet18'
+  s_arch: 'r3d'
+  n_classes: 1000
+  t_pretrain_path: 'weights/resnet18-5c106cde.pth'
+
+run:
+  exp_path: 'exps'
+  gpus: 0
+  manual_seed: 1
+
+train:
+  method: 'Simple'
+  n_threads: 10
+  batch_size: 32
+  n_epochs: 45
+  checkpoint: 1
+  temporal_pooling: 'AVG'
+  data:
+    name: 'ucf101'
+    sample_size: 224
+    sample_duration: 16
+    norm_value: 255
+    initial_scale: 1.0
+    n_scales: 5
+    scale_step: 0.84089641525
+    train_crop: 'corner'
+  sim_loss:
+    name: 'L2'  # can be set to 'KL_DIV' to simulate Hinton KD
+    weight: 1
+  optimizer:
+    name: 'SGD'
+    learning_rate: 0.01
+    momentum: 0.9
+    weight_decay: 0.0001
+  scheduler:
+    name: 'MultiStep'
+    milestones: [10, 20, 30, 40]
+    gamma: 0.1
+  logging_n: 10
+
+eval:
+  method: 'Retrieval'
+  n_threads: 10
+  batch_size: 16
+  epoch_n: 1
+  data:
+    name: 'hmdb51'
+    norm_value: 255
