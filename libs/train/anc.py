@@ -27,7 +27,7 @@ class ANCTrainer(BaseTrainer):
 
         # Loss function
         self.similarity_loss = Loss(opt.train.sim_loss.name, opt.train.sim_loss.weight)
-        self.adversarial_loss = Loss('BCE', opt.train.adv_loss.weight)  # todo: WGAN, ...
+        self.adversarial_loss = Loss('BCE', opt.train.adv_loss.weight, logit_target=False)  # todo: WGAN, ...
         self.regularizer_loss = self._define_reg(opt.train.d_reg)
 
         # Schedulers
@@ -44,7 +44,7 @@ class ANCTrainer(BaseTrainer):
             if 'L2' in names:
                 param_regs.append(Regularizer('L2', opt.weight))
             if 'FakeAsReal' in names:
-                output_regs.append(Loss('BCE', opt.weight))
+                output_regs.append(Loss('BCE', opt.weight, logit_target=False))
 
             def calc_reg(outputs, targets):
                 total_reg = -sum(reg(self.discriminator.parameters()) for reg in param_regs) + \

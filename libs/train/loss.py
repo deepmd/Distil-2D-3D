@@ -18,12 +18,11 @@ class Loss(nn.Module):
             self.input_transform = partial(F.softmax, dim=-1)
             self.target_transform = partial(F.softmax, dim=-1)
         elif name == 'BCE':
-            if logit_input and logit_target:
+            if logit_input:
                 self.loss = F.binary_cross_entropy_with_logits
             else:
                 self.loss = F.binary_cross_entropy
-                self.input_transform = F.sigmoid
-                self.target_transform = F.sigmoid
+            self.target_transform = F.sigmoid
         elif name == 'KL_DIV':
             self.loss = partial(F.kl_div, reduction='batchmean')
             # pytorch kl divergence function expects log probabilities as input
