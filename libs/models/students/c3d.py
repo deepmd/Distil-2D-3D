@@ -64,7 +64,7 @@ class C3D(nn.Module):
         #     self.linear = nn.Linear(512, self.num_outputs)
         self.linear = nn.Linear(512, self.num_outputs)
 
-    def forward(self, x, dropout=None):
+    def forward(self, x, dropout=None, adjust_features=False):
         x = self.conv1(x) 
         x = self.bn1(x)
         x = self.relu1(x)
@@ -112,7 +112,7 @@ class C3D(nn.Module):
         #     x = self.linear(x)
         logits = self.linear(feats)
 
-        if self.adjust_features is not None:
+        if adjust_features and self.adjust_features is not None:
             feats = self.adjust_features(feats)
         
         return {'features': feats, 'logits': logits}

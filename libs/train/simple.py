@@ -57,7 +57,7 @@ class SimpleTrainer(BaseTrainer):
             self.optimizer.step()
 
             losses = {
-                'Loss': loss.mean().item()
+                'Loss': loss.item()
             }
             lrs = {
                 'Opt': self.optimizer.param_groups[0]['lr']

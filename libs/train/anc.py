@@ -78,8 +78,8 @@ class ANCTrainer(BaseTrainer):
             t_outputs = self._teacher_inference(inputs)
 
             s_inputs = F.interpolate(inputs, scale_factor=(1.0, 0.5, 0.5), mode='nearest')
-            s_outputs = self.student(s_inputs)
-            s_outputs_adv = self.student(s_inputs, dropout=0.5)
+            s_outputs = self.student(s_inputs, adjust_features=True)
+            s_outputs_adv = self.student(s_inputs, dropout=0.5, adjust_features=True)
 
             # Adversarial ground truths
             valid = torch.ones(batch_size).to(self.device)
@@ -118,11 +118,11 @@ class ANCTrainer(BaseTrainer):
             self.optimizer_D.step()
 
             losses = {
-                'St': s_loss.mean().item(),
-                'St_Adv': s_adv_loss.mean().item(),
-                'St_Sim': s_sim_loss.mean().item(),
-                'Ds': d_adv_loss.mean().item(),
-                'Ds_Reg': d_reg_loss.mean().item()
+                'St': s_loss.item(),
+                'St_Adv': s_adv_loss.item(),
+                'St_Sim': s_sim_loss.item(),
+                'Ds': d_adv_loss.item(),
+                'Ds_Reg': d_reg_loss.item()
             }
             lrs = {
                 'Opt_G': self.optimizer_G.param_groups[0]['lr'],
