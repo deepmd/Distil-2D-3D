@@ -2,12 +2,14 @@ from torch.nn import functional as F
 
 from libs.train.base_trainer import BaseTrainer
 from libs.train.loss import Loss
-from libs.utils import get_model_state
+from libs.utils import get_model_state, remove_adjust_features
 
 
 class SimpleTrainer(BaseTrainer):
     def __init__(self, opt, teacher, student, callback, checkpoint):
         super(SimpleTrainer, self).__init__(opt, teacher, student, callback)
+
+        remove_adjust_features(self.student)  # in the current train policy only logits are used
 
         # Optimizer
         self.optimizer = self._define_optimizer(self.student.parameters(), opt.train.optimizer or opt.train.s_optimizer)

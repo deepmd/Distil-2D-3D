@@ -11,7 +11,7 @@ from torch.nn.modules.utils import _triple
 class C3D(nn.Module):
     """C3D with BN and pool5 to be AdaptiveAvgPool3d(1)."""
     # def __init__(self, with_classifier=False, return_conv=False, num_classes=101):
-    def __init__(self, num_outputs=101):
+    def __init__(self, num_outputs=101, features_size=512):
         super(C3D, self).__init__()
         # self.with_classifier = with_classifier
         self.num_outputs = num_outputs
@@ -55,6 +55,10 @@ class C3D(nn.Module):
         #     # self.feature_pool = nn.MaxPool3d(kernel_size=(2, 2, 2), stride=(2, 2, 2)) 4182
 
         self.pool5 = nn.AdaptiveAvgPool3d(1)
+
+        self.adjust_features = None
+        if features_size != 512:
+            self.adjust_features = nn.Linear(512, features_size)
 
         # if self.with_classifier:
         #     self.linear = nn.Linear(512, self.num_outputs)
@@ -107,6 +111,9 @@ class C3D(nn.Module):
         # if self.with_classifier:
         #     x = self.linear(x)
         logits = self.linear(feats)
+
+        if self.adjust_features is not None:
+            feats = self.adjust_features(feats)
         
         return {'features': feats, 'logits': logits}
 

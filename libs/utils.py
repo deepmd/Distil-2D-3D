@@ -82,12 +82,22 @@ def load_model(model, snapshot):
     model.load_state_dict(new_state_dict, strict=False)
 
 
+def _strip_DataParallel(net):
+    if isinstance(net, torch.nn.DataParallel):
+        return _strip_DataParallel(net.module)
+    return net
+
+
+def remove_adjust_features(model):
+    _strip_DataParallel(model).adjust_features = None
+
+
+def get_last_features_size(model):
+    return _strip_DataParallel(model).fc.in_features
+
+
 def get_model_state(model):
-    def strip_DataParallel(net):
-        if isinstance(net, torch.nn.DataParallel):
-            return strip_DataParallel(net.module)
-        return net
-    return strip_DataParallel(model).state_dict()
+    return _strip_DataParallel(model).state_dict()
 
 
 class AverageMeter(object):

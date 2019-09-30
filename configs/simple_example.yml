@@ -12,7 +12,7 @@ run:
 train:
   method: 'Simple'
   n_threads: 10
-  batch_size: 32
+  batch_size: 32 # in DistInit paper total batch_size (batch_size*n_gpus) is 16*4
   n_epochs: 45
   checkpoint: 1
   temporal_pooling: 'AVG'
@@ -31,7 +31,7 @@ train:
   optimizer:
     name: 'SGD'
     learning_rate: 0.01
-    momentum: 0.9
+    momentum: 0.9 # ?? its value has not been not specified in DistInit paper
     weight_decay: 0.0001
   scheduler:
     name: 'MultiStep'

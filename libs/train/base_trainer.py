@@ -33,7 +33,8 @@ class BaseTrainer(object):
                                             batch_size=opt.train.batch_size,
                                             shuffle=True,
                                             num_workers=opt.train.n_threads,
-                                            pin_memory=True)
+                                            pin_memory=True,
+                                            drop_last=True)
 
     def _define_optimizer(self, parameters, opt):
         if opt.name == 'SGD':

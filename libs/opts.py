@@ -51,7 +51,7 @@ class opts(object):
 
         if opt['run']['gpus'] == -1:
             opt['run']['gpus'] = []
-        elif opt['run']['gpus'] is not list:
+        elif not isinstance(opt['run']['gpus'], list):
             opt['run']['gpus'] = [opt['run']['gpus']]
 
         if 'train' not in override_opt:

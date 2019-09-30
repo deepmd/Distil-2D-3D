@@ -68,7 +68,7 @@ class TrainCallback(object):
         else:
             Bar.suffix += '|LR '
             for lr_name, lr_val in lrs.items():
-                Bar.suffix += '{}: {:.4f} '.format(lr_name, lr_val)
+                Bar.suffix += '{}: {:.6f} '.format(lr_name, lr_val)
         self.last_lrs = lrs
         self.bar.next()
 
@@ -83,11 +83,11 @@ class TrainCallback(object):
                 for l_name in losses.keys():
                     log_str += '{}: {:.4f} '.format(l_name, self.log_avg_loss[l_name].avg)
             if len(lrs) == 1:
-                log_str += '|LR: {:.4f} '.format(list(lrs.values())[0])
+                log_str += '|LR: {:.6f} '.format(list(lrs.values())[0])
             else:
                 log_str += '|LR '
                 for lr_name, lr_val in lrs.items():
-                    log_str += '{}: {:.4f} '.format(lr_name, lr_val)
+                    log_str += '{}: {:.6f} '.format(lr_name, lr_val)
             self.logger.info(log_str)
             for log_avg in self.log_avg_loss.values():
                 log_avg.reset()
@@ -146,16 +146,18 @@ def train(opt, writer, logger):
     # Setup Models
     teacher, student = get_teacher_student_models(opt, checkpoint)
 
-    # Print number of parameters
-    log_parameter_number(teacher, 'Teacher')
-    log_parameter_number(student, 'Student')
-
     if not opt.no_eval:
         evaluator = get_evaluator(opt, student)
 
     if not opt.no_train:
         train_callback = TrainCallback(opt, writer, logger)
         trainer = get_trainer(opt, teacher, student, train_callback, checkpoint)
+
+    # Print number of parameters
+    log_parameter_number(teacher, 'Teacher')
+    log_parameter_number(student, 'Student')
+
+    if not opt.no_train:
         for epoch in range(begin_epoch+1, opt.train.n_epochs+1):
             step = trainer.train(epoch, step)
             if epoch % opt.train.checkpoint == 0:

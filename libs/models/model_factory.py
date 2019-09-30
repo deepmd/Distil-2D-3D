@@ -12,7 +12,7 @@ from libs.models.students.r21d import R2Plus1DNet
 
 from libs.models.discriminators.anc import ANCDiscriminator
 
-from libs.utils import load_model
+from libs.utils import load_model, get_last_features_size
 
 t_models = {'resnet18': resnet18, 'resnet34': resnet34, 'resnet50': resnet50, 'resnet101': resnet101, 'resnet152': resnet152}
 s_models = {'c3d': C3D, 'r3d': R3DNet, 'r21d': R2Plus1DNet}
@@ -35,7 +35,8 @@ def get_teacher_student_models(opt, checkpoint=None):
         param.requires_grad = False
 
     # Create student model
-    student = s_models[opt.model.s_arch](num_outputs=num_outputs)
+    teacher_features_size = get_last_features_size(teacher)
+    student = s_models[opt.model.s_arch](num_outputs=num_outputs, features_size=teacher_features_size)
 
     if checkpoint is None:
         checkpoint = dict()

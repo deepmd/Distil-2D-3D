@@ -4,7 +4,7 @@ from torch.nn import functional as F
 from libs.train.base_trainer import BaseTrainer
 from libs.train.loss import Loss, Regularizer
 from libs.models.model_factory import get_discriminator
-from libs.utils import get_model_state, log_parameter_number
+from libs.utils import get_model_state, get_last_features_size, log_parameter_number
 
 
 class ANCTrainer(BaseTrainer):
@@ -14,7 +14,7 @@ class ANCTrainer(BaseTrainer):
     def __init__(self, opt, teacher, student, callback, checkpoint):
         super(ANCTrainer, self).__init__(opt, teacher, student, callback)
 
-        in_size = teacher.fc.in_features  # todo: for resnet50 and upper, it is 512 * 4 !!
+        in_size = get_last_features_size(teacher)
         self.discriminator = get_discriminator(opt, in_size, checkpoint)
         log_parameter_number(self.discriminator, 'Discriminator')
 
@@ -38,7 +38,7 @@ class ANCTrainer(BaseTrainer):
         param_regs = []
         output_regs = []
         if opt is not None:
-            names = opt.name if opt.name is list else [opt.name]
+            names = opt.name if isinstance(opt.name, list) else [opt.name]
             if 'L1' in names:
                 param_regs.append(Regularizer('L1', opt.weight))
             if 'L2' in names:

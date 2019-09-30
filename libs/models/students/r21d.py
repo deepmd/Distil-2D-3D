@@ -163,7 +163,7 @@ class R2Plus1DNet(nn.Module):
 
     # def __init__(self, layer_sizes=(1, 1, 1, 1), block_type=SpatioTemporalResBlock,
     #              with_classifier=False, return_conv=False, num_classes=101):
-    def __init__(self, layer_sizes=(1, 1, 1, 1), block_type=SpatioTemporalResBlock, num_outputs=101):
+    def __init__(self, layer_sizes=(1, 1, 1, 1), block_type=SpatioTemporalResBlock, num_outputs=101, features_size=512):
         super(R2Plus1DNet, self).__init__()
         # self.with_classifier = with_classifier
         # self.return_conv = return_conv
@@ -187,6 +187,10 @@ class R2Plus1DNet(nn.Module):
 
         # global average pooling of the output
         self.pool = nn.AdaptiveAvgPool3d(1)
+
+        self.adjust_features = None
+        if features_size != 512:
+            self.adjust_features = nn.Linear(512, features_size)
 
         # if self.with_classifier:
         #     self.linear = nn.Linear(512, self.num_outputs)
@@ -212,6 +216,9 @@ class R2Plus1DNet(nn.Module):
         # if self.with_classifier:
         #     x = self.linear(x)
         logits = self.linear(feats)
+
+        if self.adjust_features is not None:
+            feats = self.adjust_features(feats)
 
         return {'features': feats, 'logits': logits}
 
