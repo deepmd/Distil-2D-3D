@@ -64,7 +64,7 @@ class TrainCallback(object):
                 self.log_avg_loss[l_name].update(l_val, batch_size)
                 Bar.suffix += '{}: {:.4f} '.format(l_name, self.bar_avg_loss[l_name].avg)
         if len(lrs) == 1:
-            Bar.suffix += '|LR: {:.4f} '.format(list(lrs.values())[0])
+            Bar.suffix += '|LR: {:.6f} '.format(list(lrs.values())[0])
         else:
             Bar.suffix += '|LR '
             for lr_name, lr_val in lrs.items():
@@ -136,7 +136,7 @@ def train(opt, writer, logger):
     best_metric = 0
     metric = 0
     if not opt.no_train and opt.train.resume_path is not None:
-        print('loading checkpoint {}'.format(opt.train.resume_path))
+        print('Loading checkpoint {}'.format(opt.train.resume_path))
         checkpoint = torch.load(opt.train.resume_path)
         begin_epoch = checkpoint['epoch']
         step = checkpoint['step']

@@ -25,11 +25,6 @@ def get_teacher_student_models(opt, checkpoint=None):
               t_models[opt.model.t_arch]()
     num_outputs = teacher.num_outputs
 
-    # Load parameters in teacher models
-    if opt.model.t_pretrain_path is not None:
-        checkpoint = torch.load(opt.model.t_pretrain_path)
-        teacher.load_state_dict(checkpoint)
-
     # Freeze teachers's weights
     for param in teacher.parameters():
         param.requires_grad = False
@@ -48,7 +43,7 @@ def get_teacher_student_models(opt, checkpoint=None):
     if 'teacher' in checkpoint:
         load_model(teacher, checkpoint['teacher'])
     if 'student' in checkpoint:
-        load_model(teacher, checkpoint['student'])
+        load_model(student, checkpoint['student'])
 
     if len(opt.run.gpus) > 1:
         teacher = torch.nn.DataParallel(teacher).cuda()
