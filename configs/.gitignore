@@ -1,0 +1,6 @@
+*
+!default_config.yml
+!dataset_config.yml
+!anc_example.yml
+!simple_example.yml
+!.gitignore

@@ -60,8 +60,6 @@ class opts(object):
         else:
             opt['no_train'] = False
 
-            opt['train']['batch_size'] *= max(1, len(opt['run']['gpus']))
-
             train_dataset_cfg = self.dataset_cfg[opt['train']['data']['name']]
             opt['train']['data']['video_path'] = path.join(train_dataset_cfg['root_path'],
                                                            train_dataset_cfg['jpg_video_path'])
@@ -101,8 +99,6 @@ class opts(object):
             opt['no_eval'] = True
         else:
             opt['no_eval'] = False
-
-            opt['eval']['batch_size'] *= max(1, len(opt['run']['gpus']))
 
             eval_dataset_cfg = self.dataset_cfg[opt['eval']['data']['name']]
             opt['eval']['data']['video_path'] = path.join(eval_dataset_cfg['root_path'],

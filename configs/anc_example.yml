@@ -13,7 +13,7 @@ run:
 train:
   method: 'ANC'
   n_threads: 10
-  batch_size: 16 # in paper total batch_size (batch_size*n_gpus) is 128
+  batch_size: 16 # in paper batch_size is 128
   n_epochs: 200
   checkpoint: 1
   temporal_pooling: 'AVG'

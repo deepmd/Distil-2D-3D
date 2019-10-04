@@ -12,7 +12,7 @@ run:
 train:
   method: 'Simple'
   n_threads: 10
-  batch_size: 32 # in DistInit paper total batch_size (batch_size*n_gpus) is 16*4
+  batch_size: 32 # in DistInit paper batch_size is 16*4=64
   n_epochs: 45
   checkpoint: 1
   temporal_pooling: 'AVG'

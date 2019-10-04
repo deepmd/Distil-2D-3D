@@ -68,6 +68,8 @@ class RetrieveClipsEval(object):
         """Extract and save features for train split, several clips per video."""
 
         self.model.eval()
+        if str(self.device) == 'cuda':
+            torch.cuda.empty_cache()
 
         with torch.no_grad():
             features = []

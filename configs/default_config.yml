@@ -15,7 +15,7 @@ run:
 train: # {if not exists in cfg no train will be done}
   method: # Knowledge distillation train method ('ANC', 'Simple')
   n_threads: 4 # Number of threads for multi-thread loading [default=4]
-  batch_size: 32 # Batch Size per gpu. [default=32]
+  batch_size: 32 # Batch Size. [default=32]
   n_epochs: 200 # Number of total epochs to run. [default=200]
   checkpoint: 1 # Trained models are saved at every this epochs. [default=1]
   temporal_pooling: # Temporal pooling of teacher ('AVG')
@@ -60,7 +60,7 @@ train: # {if not exists in cfg no train will be done}
 eval: # {if not exists in cfg no evaluation will be done}
   method: # Evaluation method. Currently only support 'Retrieval'.
   n_threads: 4 # Number of threads for multi-thread loading [default=4]
-  batch_size: 32 # Batch Size per gpu. [default=32]
+  batch_size: 32 # Batch Size. [default=32]
   epoch_n: 1 # Evaluation will be done at every this epochs. [default=1]
   data:
     name: # Used dataset ('ucf101' | 'hmdb51')
