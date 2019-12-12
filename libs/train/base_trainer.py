@@ -106,6 +106,8 @@ class BaseTrainer(object):
             answer_logits = torch.stack(answer_logits, dim=0)
 
             return {'features': answer_feats, 'logits': answer_logits}
+        else:
+            raise ValueError("There's no temporal pooling named '{}'!".format(self.temporal_pooling))
 
     def get_snapshot(self):
         pass

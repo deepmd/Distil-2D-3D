@@ -5,6 +5,15 @@ from functools import partial
 
 
 class Loss(nn.Module):
+    """ Provide different types of loss functions.
+    Args:
+        name (string): the name of loss function: 'L1' | 'L2' | 'CE' | 'BCE' | 'KL_DIV'
+        weight (float): the weight of this loss in total loss
+        logit_input (bool): if True, the input values are considered as logits otherwise as probabilities. (default: True)
+            The value of this argument is ignored for L1 and L2 losses.
+        logit_target (bool): if True, the target values are considered as logits otherwise as probabilities. (default: True)
+            The value of this argument is ignored for L1 and L2 losses.
+    """
     def __init__(self, name, weight, logit_input=True, logit_target=True):
         super(Loss, self).__init__()
         self.input_transform = lambda x: x
@@ -14,27 +23,35 @@ class Loss(nn.Module):
         elif name == 'L2':
             self.loss = F.mse_loss
         elif name == 'CE':
-            self.loss = F.cross_entropy
-            self.input_transform = partial(F.softmax, dim=-1)
-            self.target_transform = partial(F.softmax, dim=-1)
+            if logit_input:
+                self.loss = F.cross_entropy
+            else:
+                self.loss = F.nll_loss
+                # Pytorch negative log likelihood function expects log-probabilities as input
+                self.input_transform = torch.log
+            # Pytorch cross entropy and negative log likelihood functions expect class indices as target
+            if logit_target:
+                self.target_transform = lambda x: torch.argmax(F.softmax(x, dim=-1), dim=-1)
+            else:
+                self.target_transform = partial(torch.argmax, dim=-1)
         elif name == 'BCE':
             if logit_input:
                 self.loss = F.binary_cross_entropy_with_logits
             else:
                 self.loss = F.binary_cross_entropy
-            self.target_transform = F.sigmoid
+            if logit_target:
+                self.target_transform = F.sigmoid
         elif name == 'KL_DIV':
             self.loss = partial(F.kl_div, reduction='batchmean')
-            # pytorch kl divergence function expects log probabilities as input
-            self.input_transform = partial(F.log_softmax, dim=-1)
-            self.target_transform = partial(F.softmax, dim=-1)
+            # Pytorch KL divergence function expects log-probabilities as input and probabilities as target
+            if logit_input:
+                self.input_transform = partial(F.log_softmax, dim=-1)
+            else:
+                self.input_transform = torch.log
+            if logit_target:
+                self.target_transform = partial(F.softmax, dim=-1)
         else:
             raise ValueError("There's no loss function named '{}'!".format(name))
-
-        if not logit_input:
-            self.input_transform = lambda x: x
-        if not logit_target:
-            self.target_transform = lambda x: x
 
         self.weight = weight
 
@@ -46,6 +63,11 @@ class Loss(nn.Module):
 
 
 class Regularizer(nn.Module):
+    """ Provide different types of parameter regularization functions.
+        Args:
+            name (string): the name of regularization function: 'L1' | 'L2'
+            weight (float): the weight of this regularization in total regularization
+        """
     def __init__(self, name, weight):
         super(Regularizer, self).__init__()
         if name == 'L1':

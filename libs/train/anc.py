@@ -4,7 +4,7 @@ from torch.nn import functional as F
 from libs.train.base_trainer import BaseTrainer
 from libs.train.loss import Loss, Regularizer
 from libs.models.model_factory import get_discriminator
-from libs.utils import get_model_state, get_last_features_size, log_parameter_number
+from libs.utils import get_model_state, get_last_features_size, print_parameter_number
 
 
 class ANCTrainer(BaseTrainer):
@@ -14,23 +14,25 @@ class ANCTrainer(BaseTrainer):
     def __init__(self, opt, teacher, student, callback, checkpoint):
         super(ANCTrainer, self).__init__(opt, teacher, student, callback)
 
+        # Create discriminator model
         in_size = get_last_features_size(teacher)
         self.discriminator = get_discriminator(opt, in_size, checkpoint)
-        log_parameter_number(self.discriminator, 'Discriminator')
+        print_parameter_number(self.discriminator, 'Discriminator')
 
-        # Optimizers
+        # Define two optimizers for generator/student and discriminator
         self.optimizer_G = self._define_optimizer(self.student.parameters(), opt.train.optimizer or opt.train.s_optimizer)
         self.optimizer_D = self._define_optimizer(self.discriminator.parameters(), opt.train.optimizer or opt.train.d_optimizer)
+        # Load optimizer states from checkpoint if available
         if checkpoint is not None:
             self.optimizer_G.load_state_dict(checkpoint['optimizer_G'])
             self.optimizer_D.load_state_dict(checkpoint['optimizer_D'])
 
-        # Loss function
+        # Define loss functions
         self.similarity_loss = Loss(opt.train.sim_loss.name, opt.train.sim_loss.weight)
         self.adversarial_loss = Loss('BCE', opt.train.adv_loss.weight, logit_target=False)  # todo: WGAN, ...
         self.regularizer_loss = self._define_reg(opt.train.d_reg)
 
-        # Schedulers
+        # Define two schedulers for generator/student and discriminator
         self.scheduler_G = self._define_scheduler(self.optimizer_G, opt.train.scheduler or opt.train.s_scheduler)
         self.scheduler_D = self._define_scheduler(self.optimizer_D, opt.train.scheduler or opt.train.d_scheduler)
 
@@ -39,6 +41,7 @@ class ANCTrainer(BaseTrainer):
         output_regs = []
         if opt is not None:
             names = opt.name if isinstance(opt.name, list) else [opt.name]
+            # Add discriminator-parameter and discriminator-output regularizers based on specified options
             if 'L1' in names:
                 param_regs.append(Regularizer('L1', opt.weight))
             if 'L2' in names:
@@ -50,6 +53,7 @@ class ANCTrainer(BaseTrainer):
                 total_reg = -sum(reg(self.discriminator.parameters()) for reg in param_regs) + \
                             sum(reg(outputs, targets) for reg in output_regs)
                 return total_reg
+            # Return calc_rec function which calculates sum of all regularizers
             return calc_reg
 
         return lambda o,t: 0
@@ -69,19 +73,25 @@ class ANCTrainer(BaseTrainer):
         self.teacher.eval()
 
         self.callback.begin_epoch(epoch, step, len(self.train_loader))
-        for i, (inputs, targets) in enumerate(self.train_loader):
+
+        # Train loop for an epoch
+        for inputs, targets in self.train_loader:
             step += 1
             batch_size = inputs.shape[0]
 
             inputs = inputs.to(self.device)
 
+            # Run teacher model and perform temporal pooling on results
             t_outputs = self._teacher_inference(inputs)
 
-            s_inputs = F.interpolate(inputs, scale_factor=(1.0, 0.5, 0.5), mode='nearest')
+            # Resize inputs for student model
+            s_inputs = F.interpolate(inputs, scale_factor=(1.0, 0.5, 0.5), mode='bilinear')
+            # Run student model with extra layer(s) to adjust its features size to the same size as teacher
             s_outputs = self.student(s_inputs, adjust_features=True)
+            # Run student model with dropout to be used as "adversarial samples"
             s_outputs_adv = self.student(s_inputs, dropout=0.5, adjust_features=True)
 
-            # Adversarial ground truths
+            # Create adversarial ground truths
             valid = torch.ones(batch_size).to(self.device)
             fake = torch.zeros(batch_size).to(self.device)
 

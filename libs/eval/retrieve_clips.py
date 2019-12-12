@@ -35,6 +35,8 @@ class RetrieveClipsEval(object):
             train_dataset = HMDB51ClipRetrievalDataset(opt.eval.data.video_path,
                                                        opt.eval.data.annotation_path,
                                                        16, 10, True, train_transforms)
+        else:
+            raise ValueError("Retrieval evaluator cannot be run on dataset named '{}'!".format(opt.eval.data.name))
         self.train_dataloader = DataLoader(train_dataset,
                                            batch_size=opt.eval.batch_size,
                                            shuffle=False,

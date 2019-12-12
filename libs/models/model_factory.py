@@ -25,12 +25,14 @@ def get_teacher_student_models(opt, checkpoint=None):
               t_models[opt.model.t_arch]()
     num_outputs = teacher.num_outputs
 
-    # Freeze teachers's weights
+    # Freeze teacher weights
     for param in teacher.parameters():
         param.requires_grad = False
 
     # Create student model
     teacher_features_size = get_last_features_size(teacher)
+    # features_size argument is used to add extra layer(s) for adjusting student final feature size to the same size
+    # as teacher. If this extra layer not required, it can be removed later by calling remove_adjust_features function.
     student = s_models[opt.model.s_arch](num_outputs=num_outputs, features_size=teacher_features_size)
 
     if checkpoint is None:

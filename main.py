@@ -9,13 +9,14 @@ import os
 import time
 from collections import defaultdict
 
-from libs.utils import get_logger, log_parameter_number, AverageMeter
+from libs.utils import get_logger, print_parameter_number, AverageMeter
 from libs.models.model_factory import get_teacher_student_models
 from libs.train.trainer_factory import get_trainer
 from libs.eval.evaluator_factory import get_evaluator
 from libs.opts import opts
 
 
+# Used only for logging
 class TrainCallback(object):
     def __init__(self, opt, writer, logger):
         self.writer = writer
@@ -23,14 +24,14 @@ class TrainCallback(object):
         self.exp_id = opt.run.exp_id
         self.logging_n = opt.train.logging_n
         self.max_epochs = opt.train.n_epochs
-        self.max_epochs_len = str(len(str(self.max_epochs)))
+        self.max_epochs_len = str(len(str(self.max_epochs)))  # Used to format the log string
 
     def begin_epoch(self, epoch, step, total_iters):
         self.bar = Bar('{}'.format(self.exp_id), max=total_iters)
         self.begin_step = step
         self.total_iters = total_iters
-        self.total_iters_len = str(len(str(total_iters)))
-        self.max_iters_len = str(len(str(self.max_epochs*total_iters)))
+        self.total_iters_len = str(len(str(total_iters)))  # Used to format the log string
+        self.max_iters_len = str(len(str(self.max_epochs*total_iters)))  # Used to format the log string
         self.bar_avg_loss = defaultdict(lambda: AverageMeter())
         self.log_avg_loss = defaultdict(lambda: AverageMeter())
         self.bar_batch_time = AverageMeter()
@@ -40,17 +41,17 @@ class TrainCallback(object):
 
     def end_epoch(self, epoch, step):
         self.bar.finish()
-        # ============ TensorBoard logging ============
+        # Write learning rate(s) to TensorBoard
         info = {('param/LR_' + l): v for l, v in self.last_lrs.items()}
         for tag, value in info.items():
             writer.add_scalar(tag, value, epoch)
 
     def end_iter(self, epoch, step, losses, lrs, batch_size):
-        # ============ Progressbar & logging ============
         iter_id = step - self.begin_step
         self.bar_batch_time.update(time.time() - self.start)
         self.log_batch_time.update(time.time() - self.start)
 
+        # Update loss(es), learning rate(s) and timing values and display them in progressbar
         Bar.suffix = '[{0}][{1}/{2}]|Tot: {total:} |ETA: {eta:} |Bch: {batch:.1f}s '.format(
             epoch, iter_id, self.total_iters, total=self.bar.elapsed_td, eta=self.bar.eta_td, batch=self.bar_batch_time.avg)
         if len(losses) == 1:
@@ -72,6 +73,7 @@ class TrainCallback(object):
         self.last_lrs = lrs
         self.bar.next()
 
+        # Log loss(es), learning rate(s) and timing values at specified interval
         if step % self.logging_n == 0:
             log_str = ('Train [{0:0' + self.max_epochs_len + 'd},{1:0' + self.max_iters_len + 'd}][{2:0' +
                        self.total_iters_len + 'd}/{3}]|Total: {total:} |Batch: {batch:4.1f}s ').format(
@@ -93,7 +95,7 @@ class TrainCallback(object):
                 log_avg.reset()
             self.log_batch_time.reset()
 
-        # ============ TensorBoard logging ============
+        # Write loss(es) to TensorBoard
         info = {('loss/'+l): v for l,v in losses.items()}
         for tag, value in info.items():
             writer.add_scalar(tag, value, step)
@@ -120,8 +122,10 @@ def evaluate(evaluator, epoch=0, writer=None, logger=None):
     for m_name, m_val in all_metrics.items():
         log_str += ' {}: {:.4f} '.format(m_name, m_val)
     print(log_str)
+    # Log evaluation result
     if logger is not None:
         logger.info(log_str)
+    # Write evaluation result to TensorBoard
     if writer is not None:
         for m_name, m_val in all_metrics.items():
             writer.add_scalar('metric/{}'.format(m_name), m_val, epoch)
@@ -129,12 +133,14 @@ def evaluate(evaluator, epoch=0, writer=None, logger=None):
 
 
 def train(opt, writer, logger):
-    # Load checkpoint
-    checkpoint = None
+    # Initialize variables
     begin_epoch = 0
     step = 0
     best_metric = 0
     metric = 0
+    checkpoint = None
+
+    # Load checkpoint to resume training
     if not opt.no_train and opt.train.resume_path is not None:
         print('Loading checkpoint {}'.format(opt.train.resume_path))
         checkpoint = torch.load(opt.train.resume_path)
@@ -143,36 +149,36 @@ def train(opt, writer, logger):
         metric = checkpoint['metric']
         best_metric = checkpoint['best_metric']
 
-    # Setup Models
+    # Create teacher and student models
     teacher, student = get_teacher_student_models(opt, checkpoint)
 
-    if not opt.no_eval:
-        evaluator = get_evaluator(opt, student)
-
+    # Train
     if not opt.no_train:
         train_callback = TrainCallback(opt, writer, logger)
         trainer = get_trainer(opt, teacher, student, train_callback, checkpoint)
-
-    # Print number of parameters
-    log_parameter_number(teacher, 'Teacher')
-    log_parameter_number(student, 'Student')
-
-    if not opt.no_train:
+        print_parameter_number(teacher, 'Teacher')
+        print_parameter_number(student, 'Student')
+        evaluator = get_evaluator(opt, student)
+        # Epochs loop
         for epoch in range(begin_epoch+1, opt.train.n_epochs+1):
             step = trainer.train(epoch, step)
+            # Save checkpoint at specified interval
             if epoch % opt.train.checkpoint == 0:
                 chk_save_path = os.path.join(opt.run.save_path, 'checkpoints/save_{:03d}.pth'.format(epoch))
                 save_checkpoint(chk_save_path, trainer, epoch, step, metric, best_metric)
+            # Evaluate at specified interval
             if not opt.no_eval and epoch % opt.eval.epoch_n == 0:
                 metric = evaluate(evaluator, epoch, writer, logger)
+                # Save best model checkpoint
                 if metric >= best_metric:
                     best_metric = metric
                     best_save_path = os.path.join(opt.run.save_path, 'checkpoints/best.pth')
                     save_checkpoint(best_save_path, trainer, epoch, step, metric, best_metric)
             trainer.step_scheduler(epoch, metric)
-
+    # Evaluate only
     elif not opt.no_eval:
-        evaluate(evaluator)
+        evaluator = get_evaluator(opt, student)
+        evaluate(evaluator, logger=logger)
 
 
 if __name__ == '__main__':
